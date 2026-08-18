@@ -1,8 +1,8 @@
 # OFDR Reflectometer — Project Handover
 
 **Date:** 2026-08-12 · **For:** incoming student + any Claude session taking over
-**Scripts:** `ofdr_process.py` (main pipeline), `ofdr_diagnose.py` (discriminator
-toolkit), `make_test_data.py` (synthetic validator, CSV format)
+**Scripts:** `process_reflectogram.py` (main pipeline), `diagnose_artifacts.py`
+(discriminator toolkit), `tools/simulate_scan_data.py` (synthetic validator, CSV format)
 
 Read this top to bottom once. The single most important lesson of the project
 so far is at the end of §5: three plausible explanations for one artifact were
@@ -265,8 +265,9 @@ Do NOT smooth the aux phase (it must track the ~4.7 pm ripple).
 - Fixed power range on every CoreDAQ channel (autoranging mid-sweep = phase
   discontinuity = unwrap corruption to end of scan).
 - Validate any pipeline change on synthetic data with known ground truth
-  before real data (`make_test_data.py`; note it emits the older two-CSV
-  format consumed by the legacy `reflectometer.py`, kept for reference).
+  before real data (`tools/simulate_scan_data.py`; note it emits the older
+  two-CSV format consumed by the legacy `legacy/reflectometer_csv_generic.py`,
+  kept for reference).
 - Suggested first tasks for the student, in order: (1) tape-measure the
   46.4 mm topology question (§1); (2) terminate the far end and verify the
   band dies; (3) one free-run acquisition end-to-end with aux-referenced
