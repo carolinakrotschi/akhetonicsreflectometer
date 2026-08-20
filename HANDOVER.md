@@ -2,7 +2,8 @@
 
 **Date:** 2026-08-12 · **For:** incoming student + any Claude session taking over
 **Scripts:** `process_reflectogram.py` (main pipeline), `diagnose_artifacts.py`
-(discriminator toolkit), `tools/simulate_scan_data.py` (synthetic validator, CSV format)
+(discriminator toolkit, including an `alias` subcommand for single-file/pair
+aliasing checks)
 
 Read this top to bottom once. The single most important lesson of the project
 so far is at the end of §5: three plausible explanations for one artifact were
@@ -69,6 +70,75 @@ that this is consistent with whatever the topology turns out to be.
 - **Not yet built:** the dedicated auxiliary interferometer (see §6),
   balanced photodetectors, polarization-diverse receiver, any absolute-λ
   reference. All deferred deliberately; none blocks current work.
+- **Channel convention for the future 4-channel aux setup (confirmed
+  2026-08-18):** Ch1/Ch2 = the aux MZI (the reference "ruler"), Ch3/Ch4 =
+  the measurement interferometer, i.e. the one with the test fiber. This is
+  the opposite of what an earlier draft of `process_reflectogram_aux.py`
+  and its docs assumed — both have since been corrected. Double-check this
+  against the physical wiring before trusting any 4-channel scan.
+- **Channel convention -- DISPUTED, 2026-08-19.** On the first real
+  1,000,000-point 4-channel scan (`2026-08-19_1miodatapoints.json`), the
+  2026-08-18 pairing above does not hold: Ch1/Ch2 and Ch3/Ch4 are each one
+  very weak + one strong channel (ratio ~300-500x), not the near-equal
+  complementary outputs balanced subtraction expects. Per-channel fringe
+  counting shows Ch1 and Ch3 share one beat frequency (~27-28k fringes
+  over the sweep) and Ch2 and Ch4 share a different, much higher one
+  (~112k fringes) -- i.e. the real complementary pairs are Ch1/Ch3 and
+  Ch2/Ch4, interleaved rather than consecutive. Calibrating each pair as
+  if it were the aux: Ch1/Ch3 gives dL ≈ 0.93-0.96 m (matches the
+  confirmed ~50 cm one-way / ~1.046 m test-fiber figures above and in §5);
+  Ch2/Ch4 gives dL ≈ 3.78 m (matches the ~4 m aux design target in
+  `md files/measurement_procedure.md` S2). That numeric evidence points to
+  Ch2/Ch4 = aux, Ch1/Ch3 = measurement -- opposite of what Carolina
+  reported verbally (strong channels = reflectometer signal, weak = aux).
+  **Unresolved — needs a hardware check** (which physical coupler feeds
+  which detector channel) before trusting either assignment. See
+  `logs/2026-08-19.md` for the full numeric comparison.
+  `check_aux_interferometer.py` and `process_reflectogram_aux.py` now
+  accept `--aux-a/--aux-b/--meas-a/--meas-b` to select the pairing
+  explicitly instead of hardcoding it.
+- **Fixed internal reflection at z ≈ 587 mm (found 2026-08-20) — READ THIS
+  BEFORE INTERPRETING ANY z-axis position from Ch1/Ch3.** Every scan on
+  2026-08-20, including a no-fiber control (test port disconnected
+  entirely), shows a strong peak at ~587 mm. It is NOT the DUT — proven by
+  the control scan. When a fiber IS connected, its own end reflection
+  combines with this fixed reflector via a multipath/double-bounce path,
+  producing a peak at **z ≈ 587 mm + L_fiber (one-way)**, which is more
+  robustly visible in this channel than the fiber's own direct
+  reflection (the latter was undetectable at all for a lossier 3 m
+  fiber). Confirmed against two independently tape-measured fibers
+  (1.04 m and 3.05 m): the ratio of (z-587mm) between them matches the
+  true length ratio to within 1%. **To read a fiber's length off this
+  setup: subtract 587 mm from the peak position, don't use the raw
+  position.** The 587 mm reflector's physical origin is still unknown;
+  see `logs/2026-08-20.md` for the full derivation.
+- **A second fixed internal reflection at z ≈ 518 mm** (found 2026-08-20,
+  same day): present in all six scans that day at −14 to −26 dB,
+  including the no-fiber control -- same proof as the 587 mm reflector
+  above. Likely another connector/splice in the part of the setup that
+  doesn't involve the DUT fiber. Hasn't been seen mixing with the fiber
+  signal the way the 587 mm one does, but keep it in mind if future
+  scans show unexplained peaks -- check against 518 mm sums/differences
+  too, not just 587 mm ones.
+- **Test fiber length — open discrepancy (2026-08-18):** confirmed to be
+  the SAME physical patchcord used throughout §5's 2026-08-12 aliasing
+  investigation. But the lengths disagree: 50 cm one-way, measured
+  2026-08-18, vs. the ~1.046 m one-way figure that §5 derived from the
+  data (three independent methods) and that `fold 1.046` was built around.
+  Not a simple unit/convention mixup -- `fold 0.5` and `fold 1.046` predict
+  DIFFERENT apparent band positions (33.4 cm vs. the ~20 cm figure used in
+  §5), so this isn't just one of the two numbers meaning OPD instead of
+  one-way distance. Unresolved; candidates worth checking before trusting
+  either number: (a) the setup changed between 08-12 and 08-18 (different
+  connector/adapter/jumper in the path, changing total length without
+  changing "the patchcord"), (b) the 08-12 data-derived estimate was itself
+  contaminated by a second aliased component (its own §5 caveats already
+  flag "several superimposed components" as a failure mode for that
+  method), (c) the 2026-08-18 length wasn't measured end-to-end (e.g. does
+  it include the connector at the circulator, or just the bare fiber).
+  Re-running `diagnose_artifacts.py alias` as a pair test against a scan
+  with a different wavelength step would settle this independently of
+  either prior number.
 
 **Data format** (what all scripts expect):
 
@@ -265,9 +335,10 @@ Do NOT smooth the aux phase (it must track the ~4.7 pm ripple).
 - Fixed power range on every CoreDAQ channel (autoranging mid-sweep = phase
   discontinuity = unwrap corruption to end of scan).
 - Validate any pipeline change on synthetic data with known ground truth
-  before real data (`tools/simulate_scan_data.py`; note it emits the older
-  two-CSV format consumed by the legacy `legacy/reflectometer_csv_generic.py`,
-  kept for reference).
+  before real data. (The old synthetic-CSV validator for the legacy
+  `legacy/reflectometer_csv_generic.py` path was retired 2026-08-18 as
+  redundant with the real-data diagnostics in `diagnose_artifacts.py`;
+  recover it from git history if that legacy path is ever needed again.)
 - Suggested first tasks for the student, in order: (1) tape-measure the
   46.4 mm topology question (§1); (2) terminate the far end and verify the
   band dies; (3) one free-run acquisition end-to-end with aux-referenced

@@ -6,8 +6,11 @@ Simulates exactly what the black CoreDAQ records after the single
 trigger: 4 channels, sampled uniformly in TIME (1 us), no wavelength
 table.
 
-    Ch1 / Ch2 : Measurement interferometer (complementary)
-    Ch3 / Ch4 : Aux MZI, the ruler (complementary)
+    Ch1 / Ch2 : Aux MZI, the ruler (complementary)
+    Ch3 / Ch4 : Measurement interferometer, with the test fiber (complementary)
+
+    (Corrected 2026-08-18 to match the real wiring -- see
+    process_reflectogram_aux.py's docstring.)
 
 Included because it's also present in the real data:
   - Sweep nonlinearity: slow bow (~59 pm p-p, as measured)
@@ -114,10 +117,10 @@ def main():
     # --- Detector model: DC offset, complementary, gain drift, noise ---
     gain = np.linspace(0.84, 1.14, n)
     vis_m, vis_a = 0.75, 0.9
-    ch1 = 0.5 * (1 + vis_m * meas)
-    ch2 = 0.5 * (1 - vis_m * meas) / gain
-    ch3 = 0.5 * (1 + vis_a * aux)
-    ch4 = 0.5 * (1 - vis_a * aux) / gain
+    ch1 = 0.5 * (1 + vis_a * aux)
+    ch2 = 0.5 * (1 - vis_a * aux) / gain
+    ch3 = 0.5 * (1 + vis_m * meas)
+    ch4 = 0.5 * (1 - vis_m * meas) / gain
     for arr in (ch1, ch2, ch3, ch4):
         arr += rng.normal(0, a.noise, n)
 

@@ -3,7 +3,8 @@
 Acceptance test for the aux MZI (the "ruler"), in FREE-RUNNING mode.
 
 Run this BEFORE trusting anything about the measurement. It only looks
-at Ch3/Ch4 (the aux) and answers four questions:
+at the aux pair (default Ch1/Ch3 -- see the 2026-08-19 correction below)
+and answers four questions:
 
   1. CONTRAST      Does the aux fringe cleanly across the whole sweep, or
                     does it drop out somewhere? (Dropout = polarization
@@ -21,6 +22,12 @@ at Ch3/Ch4 (the aux) and answers four questions:
                     diagnose_artifacts.py tuning, which measures through
                     the main tone and gets contaminated by interfering
                     signals.
+
+(Corrected 2026-08-19: the aux pair is Ch1/Ch3, not consecutive-numbered
+Ch1/Ch2 -- Ch1 and Ch3 are both weak and close to each other in median
+power, Ch2 and Ch4 are both strong and close to each other; that is the
+real complementary pairing. See process_reflectogram_aux.py's docstring.
+Override with --aux-a/--aux-b if your wiring differs.)
 
 IMPORTANT -- why free-running and not trigger mode:
     An aux with a 4 m arm difference appears at z = 2.0 m. The old trigger
@@ -47,17 +54,23 @@ NG = 1.468
 
 
 def load(path):
+    """-> (ch1, ch2, ch3, ch4, step_us). ch3/ch4 are None if not present
+    (older 2-channel files/sims)."""
     if path.endswith(".npz"):
         d = np.load(path)
         step = float(d["step_us"]) if "step_us" in d else 1.0
-        return d["ch3"], d["ch4"], step
+        ch3 = d["ch3"] if "ch3" in d else None
+        ch4 = d["ch4"] if "ch4" in d else None
+        return d["ch1"], d["ch2"], ch3, ch4, step
     with open(path) as f:
         e = json.load(f)["data"][0]
-    need = ["Ch3 [mW]", "Ch4 [mW]"]
+    need = ["Ch1 [mW]", "Ch2 [mW]"]
     if any(k not in e for k in need):
-        sys.exit(f"Ch3/Ch4 missing. Available keys: {list(e)}")
-    return (np.asarray(e["Ch3 [mW]"], float),
-            np.asarray(e["Ch4 [mW]"], float), 1.0)
+        sys.exit(f"Ch1/Ch2 missing. Available keys: {list(e)}")
+    ch3 = np.asarray(e["Ch3 [mW]"], float) if "Ch3 [mW]" in e else None
+    ch4 = np.asarray(e["Ch4 [mW]"], float) if "Ch4 [mW]" in e else None
+    return (np.asarray(e["Ch1 [mW]"], float),
+            np.asarray(e["Ch2 [mW]"], float), ch3, ch4, 1.0)
 
 
 def balanced(a, b, nseg=32):
@@ -92,15 +105,48 @@ def main():
     p.add_argument("--trim", type=float, default=0.02,
                    help="fraction discarded at each edge "
                         "(laser start-up, Hilbert edge artifacts)")
+    p.add_argument("--aux-a", type=int, default=1, choices=[1, 2, 3, 4],
+                   help="first channel of the aux (calibration) pair "
+                        "(default 1: aux = Ch1/Ch3, the weak pair -- "
+                        "confirmed 2026-08-19, see HANDOVER.md)")
+    p.add_argument("--aux-b", type=int, default=3, choices=[1, 2, 3, 4],
+                   help="second channel of the aux (calibration) pair "
+                        "(default 3)")
+    p.add_argument("--single", action="store_true",
+                   help="skip balanced subtraction; use only the stronger "
+                        "of the aux pair (by median power), high-pass "
+                        "filtered on its own. Use this when the pair is "
+                        "very unbalanced (one channel near the noise "
+                        "floor) and balanced subtraction may be injecting "
+                        "more noise than it cancels.")
     p.add_argument("--out", default=None)
     a = p.parse_args()
 
-    ch3, ch4, step_us = load(a.scan)
-    n = len(ch3)
+    ch1_, ch2_, ch3_, ch4_, step_us = load(a.scan)
+    chans = {1: ch1_, 2: ch2_, 3: ch3_, 4: ch4_}
+    if chans[a.aux_a] is None or chans[a.aux_b] is None:
+        sys.exit(f"Ch{a.aux_a}/Ch{a.aux_b} not both present in this file "
+                 f"(2-channel data?). Available: "
+                 f"{[k for k, v in chans.items() if v is not None]}")
+    ch1, ch2 = chans[a.aux_a], chans[a.aux_b]
+    n = len(ch1)
     print(f"{a.scan}: {n:,} points, sample interval {step_us} us "
-          f"-> acquisition duration {n*step_us*1e-6:.3f} s\n")
+          f"-> acquisition duration {n*step_us*1e-6:.3f} s")
+    print(f"aux (calibration) pair: Ch{a.aux_a}/Ch{a.aux_b}\n")
 
-    aux = balanced(ch3, ch4)
+    if a.single:
+        strong, strong_name = ((ch2, f"Ch{a.aux_b}") if np.median(ch2) > np.median(ch1)
+                                else (ch1, f"Ch{a.aux_a}"))
+        print(f"single-channel mode: using {strong_name} alone "
+              f"(median {np.median(strong):.4g} mW vs. "
+              f"{np.median(ch1 if strong is ch2 else ch2):.4g} mW "
+              "on the other channel), high-pass filtered\n")
+        seg = max(n // 32, 256)
+        raw_signal = strong
+        aux = strong - uniform_filter1d(strong, seg)
+    else:
+        raw_signal = ch1
+        aux = balanced(ch1, ch2)
     k = max(1, int(a.trim * n))
     sl = slice(k, n - k)
 
@@ -114,12 +160,12 @@ def main():
     # ---------------------------------------------------------- 1. Contrast
     print("1) CONTRAST")
     w = max(1000, m // 200)
-    hi = uniform_filter1d(np.maximum.accumulate(ch3[sl] * 0), w)  # placeholder
+    hi = uniform_filter1d(np.maximum.accumulate(ch1[sl] * 0), w)  # placeholder
     # Visibility, windowed, on the RAW channel
     nw = 100
     edges = np.linspace(0, m, nw + 1).astype(int)
     vis = []
-    raw = ch3[sl]
+    raw = raw_signal[sl]
     for i in range(nw):
         s = raw[edges[i]:edges[i + 1]]
         if len(s) < 10:
@@ -261,8 +307,8 @@ def main():
         fig, ax = plt.subplots(2, 2, figsize=(13, 7))
         nshow = int(np.clip(6 * m / fringes, 30, 600))
         z0 = slice(0, min(nshow, m))
-        ax[0, 0].plot(ch3[sl][z0], ".-", ms=3, lw=0.8, label="Ch3")
-        ax[0, 0].plot(ch4[sl][z0], ".-", ms=3, lw=0.8, label="Ch4")
+        ax[0, 0].plot(ch1[sl][z0], ".-", ms=3, lw=0.8, label=f"Ch{a.aux_a}")
+        ax[0, 0].plot(ch2[sl][z0], ".-", ms=3, lw=0.8, label=f"Ch{a.aux_b}")
         ax[0, 0].set_title(f"Raw aux signal, first {nshow} points "
                            "(must be a clean sine wave)")
         ax[0, 0].set_xlabel("Point"); ax[0, 0].legend(); ax[0, 0].grid(alpha=.3)
