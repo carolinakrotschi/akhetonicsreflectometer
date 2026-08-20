@@ -110,8 +110,30 @@ that this is consistent with whatever the topology turns out to be.
   (1.04 m and 3.05 m): the ratio of (z-587mm) between them matches the
   true length ratio to within 1%. **To read a fiber's length off this
   setup: subtract 587 mm from the peak position, don't use the raw
-  position.** The 587 mm reflector's physical origin is still unknown;
-  see `logs/2026-08-20.md` for the full derivation.
+  position.** The 587 mm reflector's physical origin was localized
+  2026-08-20 (later same day), across THREE different physical
+  connectors in the same slot (never actually connector-free -- an
+  earlier version of this note said "removed", corrected by Carolina):
+  original **Thorlabs connector** -> 587-590 mm family (all scans of the
+  day up to this point) -> swapped for a different, "normal" connector
+  **#1** (`2026-08-20_nofiberattheendandnotthorlabsconnector.json`) ->
+  peak dropped to **467.1 mm**; cleaning the fiber afterward
+  (`..._andfibercleaned.json`) left it unchanged at 467.0 mm, confirming
+  it is unrelated to the fiber; swapped connector #1 for a second,
+  different "normal" connector **#2**
+  (`..._andfibercleanedandnewconnector.json`) -> peak moved to
+  **589.7 mm**, back inside the same 587-590 mm family as the original
+  Thorlabs connector (connector #2 apparently has a similar physical
+  length to the Thorlabs one; connector #1 was ~120 mm shorter).
+  **Conclusion: the peak tracks the physical path length of whichever
+  specific connector occupies that slot** -- three different
+  connectors, three coherent path-length outcomes. The ~518 mm
+  secondary reflector and a ~537-541 mm cluster reappeared alongside
+  the main peak with connector #2 installed, consistent with the whole
+  family being connector-slot-dependent. See `logs/2026-08-20.md` for
+  the full derivation (including the longer, ~13 nm saturation ramp on
+  the connector-#2 scan, handled with a `_trimmed1533.npz` cutoff
+  instead of the usual 1530 nm).
 - **A second fixed internal reflection at z ≈ 518 mm** (found 2026-08-20,
   same day): present in all six scans that day at −14 to −26 dB,
   including the no-fiber control -- same proof as the 587 mm reflector
