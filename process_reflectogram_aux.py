@@ -149,7 +149,7 @@ def resample_on_aux(meas, aux, tau_aux, trim=0.01):
 
 
 # ---------------------------------------------------------------- main
-def main():
+def build_argparser():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("scan")
@@ -185,7 +185,16 @@ def main():
                         "balanced subtraction may be injecting more noise "
                         "than it cancels.")
     p.add_argument("--out", default=None)
-    a = p.parse_args()
+    return p
+
+
+def main():
+    a = build_argparser().parse_args()
+    process(a)
+
+
+def process(a):
+    warnings = []
 
     if a.tau_aux_ns is not None:
         tau_aux = a.tau_aux_ns * 1e-9
@@ -234,9 +243,11 @@ def main():
     if diag["pts_per_fringe"] < 4:
         print("  WARNING: fewer than 4 points per aux fringe -- sweep slower "
               "or shorten the aux path.")
+        warnings.append("low_pts_per_fringe")
     if diag["amp_min"] < 0.2:
         print("  WARNING: aux contrast drops somewhere (polarization "
               "fading?). Phase unreliable there.")
+        warnings.append("low_aux_contrast")
 
     # Remove residual baseline (as in process_reflectogram.py)
     t = np.linspace(-1, 1, m)
@@ -272,6 +283,7 @@ def main():
     if width > 2 * wlim * dz_bin:
         print("  WARNING: main peak > 2x window limit -- frequency axis "
               "suspicious. Investigate before trusting positions.")
+        warnings.append("main_peak_too_wide")
 
     zmax = a.zmax if a.zmax else z[-1]
     pk, _ = find_peaks(db, height=a.peak_floor_db,
@@ -285,23 +297,50 @@ def main():
             print(f"   {z[j]*1000:10.4f} mm  {db[j]:6.1f} dB{tag}")
 
     # Self-test against known truth (only for synthetic data)
+    comparison = []
     if "truth_z" in meta:
         print("\n--- Comparison with known truth ---")
         worst = 0.0
+        any_unaccounted = False
         for zt, dbt in zip(meta["truth_z"], meta["truth_db"]):
-            w = (z > zt - 20 * dz_bin) & (z < zt + 20 * dz_bin)
+            # A reflector beyond the Nyquist range doesn't vanish -- it
+            # aliases (folds back into [0, z_nyq], HANDOVER.md 5). Compare
+            # against the folded position in that case, instead of silently
+            # skipping it (which used to let a genuinely unaccounted-for
+            # reflector print PASSED).
+            aliased = zt > z_nyq
+            if aliased:
+                period = 2 * z_nyq
+                zt_expect = zt % period
+                if zt_expect > z_nyq:
+                    zt_expect = period - zt_expect
+            else:
+                zt_expect = zt
+
+            w = (z > zt_expect - 20 * dz_bin) & (z < zt_expect + 20 * dz_bin)
             if not w.any():
-                print(f"   z_true {zt:.4f} m  -- outside range")
+                any_unaccounted = True
+                print(f"   z_true {zt:.4f} m  -- unaccounted for "
+                      f"(expected {'fold at ' + format(zt_expect, '.4f') + ' m' if aliased else 'on-axis'}, nothing found there)")
+                comparison.append(dict(z_true=zt, db_true=dbt, z_found=None,
+                                        db_found=None, err_um=None, err_cells=None,
+                                        status="out_of_range_unaccounted"))
                 continue
             jj = int(np.argmax(np.where(w, R, 0)))
-            err = (z[jj] - zt) * 1e6
+            err = (z[jj] - zt_expect) * 1e6
             worst = max(worst, abs(err))
+            status = "aliased_as_expected" if aliased else "ok"
+            tag = f"  ({status}, folded from z_true)" if aliased else ""
             print(f"   z_true {zt:7.4f} m ({dbt:5.1f} dB) -> found "
                   f"{z[jj]:7.4f} m, error {err:+7.1f} um "
-                  f"({err/(dz_bin*1e6):+.2f} cells), {db[jj]:6.1f} dB")
+                  f"({err/(dz_bin*1e6):+.2f} cells), {db[jj]:6.1f} dB{tag}")
+            comparison.append(dict(z_true=zt, db_true=dbt, z_found=z[jj],
+                                    db_found=db[jj], err_um=err,
+                                    err_cells=err / (dz_bin * 1e6), status=status))
         print(f"   largest error: {worst:.1f} um "
               f"(one cell = {dz_bin*1e6:.1f} um)")
-        print("   -> PASSED" if worst < 2 * dz_bin * 1e6
+        passed = worst < 2 * dz_bin * 1e6 and not any_unaccounted
+        print("   -> PASSED" if passed
               else "   -> FAILED, check pipeline")
 
     prefix = a.out or a.scan.rsplit(".", 1)[0]
@@ -328,6 +367,10 @@ def main():
         print(f"wrote: {prefix}_reflectogram.png")
     except Exception as e:
         print(f"(plot skipped: {e})")
+
+    return dict(z=z, db=db, R=R, dz_bin=dz_bin, z_nyq=z_nyq,
+                main_peak_m=z[i], peak_width_um=width * 1e6,
+                warnings=warnings, comparison=comparison)
 
 
 if __name__ == "__main__":
