@@ -11,8 +11,9 @@ currently uncorrected chromatic dispersion (HANDOVER.md 6.5).
 Each scenario gets its own output subfolder (sim.npz + reflectogram csv/png)
 so a flagged case can be re-inspected by hand with the ordinary CLI. NOTE:
 simulate_aux_data.py writes Ch1/Ch2=aux, Ch3/Ch4=meas (consecutive pairing)
--- NOT process_reflectogram_aux.py's real-hardware default (Ch1/Ch3=aux,
-Ch2/Ch4=meas, interleaved), so pass the channel args explicitly:
+-- NOT process_reflectogram_aux.py's real-hardware default (Ch2/Ch4=aux,
+Ch1/Ch3=meas, interleaved, confirmed by hardware check 2026-08-31), so pass
+the channel args explicitly:
     python process_reflectogram_aux.py simulation/results/aux_validation_<date>/
         doublet_2cell/sim.npz --dl 4 --aux-a 1 --aux-b 2 --meas-a 3 --meas-b 4
 
@@ -49,10 +50,11 @@ DEFAULT_PROC = dict(dl=4.0, window="kaiser", kaiser_beta=12.0,
                      peak_floor_db=-45.0, trim=0.01,
                      # simulate_aux_data.py emits Ch1/Ch2=aux, Ch3/Ch4=meas
                      # (consecutive pairing) -- NOT process_reflectogram_aux.py's
-                     # real-hardware default (Ch1/Ch3=aux, Ch2/Ch4=meas,
-                     # interleaved, confirmed 2026-08-19). Override explicitly
-                     # so synthetic runs use the channels the simulator actually
-                     # wrote, regardless of what the real-hardware default is.
+                     # real-hardware default (Ch2/Ch4=aux, Ch1/Ch3=meas,
+                     # interleaved, confirmed by hardware check 2026-08-31).
+                     # Override explicitly so synthetic runs use the channels
+                     # the simulator actually wrote, regardless of what the
+                     # real-hardware default is.
                      aux_a=1, aux_b=2, meas_a=3, meas_b=4)
 
 BASELINE_REFLECTORS = ["0.046:0", "0.30:-25", "1.05:-30", "2.00:-35"]

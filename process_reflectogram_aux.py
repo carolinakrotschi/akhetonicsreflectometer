@@ -7,17 +7,20 @@ The difference in one sentence: the frequency axis no longer comes from
 the EXFO wavelength table (which no longer exists in single-trigger
 mode), but from the phase of the aux MZI.
 
-    Ch1 / Ch3 : aux MZI = ruler   (complementary, both channels weak)
-    Ch2 / Ch4 : measurement interferometer, with the test fiber
-                (complementary, both channels strong)
+    Ch2 / Ch4 : aux MZI = ruler   (complementary, both channels strong)
+    Ch1 / Ch3 : measurement interferometer, with the test fiber
+                (complementary, both channels weak)
 
     (Corrected 2026-08-19: the pairing is NOT consecutive-numbered
     (Ch1/Ch2, Ch3/Ch4) as an earlier draft and the 2026-08-18 handover
     text assumed -- it interleaves. Ch1 and Ch3 are both weak and close
     to each other in median power; Ch2 and Ch4 are both strong and close
     to each other in median power. That is the real complementary
-    pairing. Default channel selection here reflects this; override with
-    --aux-a/--aux-b/--meas-a/--meas-b if your wiring differs.)
+    pairing. Which interleaved pair is aux vs. measurement was DISPUTED
+    from 2026-08-19 until a hardware check on 2026-08-31 settled it:
+    Ch2/Ch4 = aux, Ch1/Ch3 = measurement. Default channel selection here
+    reflects this; override with --aux-a/--aux-b/--meas-a/--meas-b if
+    your wiring differs.)
 
 What is carried over UNCHANGED from process_reflectogram.py:
     balanced subtraction, windowing, FFT, peak list, width check
@@ -165,18 +168,18 @@ def build_argparser():
     p.add_argument("--peak-floor-db", type=float, default=-45.0)
     p.add_argument("--trim", type=float, default=0.01,
                    help="fraction discarded at each edge")
-    p.add_argument("--aux-a", type=int, default=1, choices=[1, 2, 3, 4],
+    p.add_argument("--aux-a", type=int, default=2, choices=[1, 2, 3, 4],
                    help="first channel of the aux (calibration) pair "
-                        "(default 1: aux = Ch1/Ch3, the weak pair -- "
-                        "confirmed 2026-08-19, see HANDOVER.md)")
-    p.add_argument("--aux-b", type=int, default=3, choices=[1, 2, 3, 4],
+                        "(default 2: aux = Ch2/Ch4, the strong pair -- "
+                        "confirmed by hardware check 2026-08-31, see HANDOVER.md)")
+    p.add_argument("--aux-b", type=int, default=4, choices=[1, 2, 3, 4],
                    help="second channel of the aux (calibration) pair "
-                        "(default 3)")
-    p.add_argument("--meas-a", type=int, default=2, choices=[1, 2, 3, 4],
+                        "(default 4)")
+    p.add_argument("--meas-a", type=int, default=1, choices=[1, 2, 3, 4],
                    help="first channel of the measurement pair "
-                        "(default 2: measurement = Ch2/Ch4, the strong pair)")
-    p.add_argument("--meas-b", type=int, default=4, choices=[1, 2, 3, 4],
-                   help="second channel of the measurement pair (default 4)")
+                        "(default 1: measurement = Ch1/Ch3, the weak pair)")
+    p.add_argument("--meas-b", type=int, default=3, choices=[1, 2, 3, 4],
+                   help="second channel of the measurement pair (default 3)")
     p.add_argument("--single", action="store_true",
                    help="skip balanced subtraction; use only the stronger "
                         "channel of each pair (by median power), high-pass "

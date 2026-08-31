@@ -3,8 +3,8 @@
 Acceptance test for the aux MZI (the "ruler"), in FREE-RUNNING mode.
 
 Run this BEFORE trusting anything about the measurement. It only looks
-at the aux pair (default Ch1/Ch3 -- see the 2026-08-19 correction below)
-and answers four questions:
+at the aux pair (default Ch2/Ch4 -- see the 2026-08-19/2026-08-31
+correction below) and answers four questions:
 
   1. CONTRAST      Does the aux fringe cleanly across the whole sweep, or
                     does it drop out somewhere? (Dropout = polarization
@@ -23,11 +23,14 @@ and answers four questions:
                     the main tone and gets contaminated by interfering
                     signals.
 
-(Corrected 2026-08-19: the aux pair is Ch1/Ch3, not consecutive-numbered
-Ch1/Ch2 -- Ch1 and Ch3 are both weak and close to each other in median
+(Corrected 2026-08-19: the pairing is not consecutive-numbered Ch1/Ch2,
+Ch3/Ch4 -- Ch1 and Ch3 are both weak and close to each other in median
 power, Ch2 and Ch4 are both strong and close to each other; that is the
-real complementary pairing. See process_reflectogram_aux.py's docstring.
-Override with --aux-a/--aux-b if your wiring differs.)
+real complementary pairing. Which interleaved pair is aux vs. measurement
+was disputed from 2026-08-19 until a hardware check on 2026-08-31 settled
+it: the aux pair is Ch2/Ch4 (strong), the measurement pair is Ch1/Ch3
+(weak). See process_reflectogram_aux.py's docstring. Override with
+--aux-a/--aux-b if your wiring differs.)
 
 IMPORTANT -- why free-running and not trigger mode:
     An aux with a 4 m arm difference appears at z = 2.0 m. The old trigger
@@ -105,13 +108,13 @@ def main():
     p.add_argument("--trim", type=float, default=0.02,
                    help="fraction discarded at each edge "
                         "(laser start-up, Hilbert edge artifacts)")
-    p.add_argument("--aux-a", type=int, default=1, choices=[1, 2, 3, 4],
+    p.add_argument("--aux-a", type=int, default=2, choices=[1, 2, 3, 4],
                    help="first channel of the aux (calibration) pair "
-                        "(default 1: aux = Ch1/Ch3, the weak pair -- "
-                        "confirmed 2026-08-19, see HANDOVER.md)")
-    p.add_argument("--aux-b", type=int, default=3, choices=[1, 2, 3, 4],
+                        "(default 2: aux = Ch2/Ch4, the strong pair -- "
+                        "confirmed by hardware check 2026-08-31, see HANDOVER.md)")
+    p.add_argument("--aux-b", type=int, default=4, choices=[1, 2, 3, 4],
                    help="second channel of the aux (calibration) pair "
-                        "(default 3)")
+                        "(default 4)")
     p.add_argument("--single", action="store_true",
                    help="skip balanced subtraction; use only the stronger "
                         "of the aux pair (by median power), high-pass "

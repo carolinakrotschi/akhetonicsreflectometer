@@ -34,7 +34,8 @@
 
 - **`HANDOVER.md` (root) is binding.** Read it at the start of any task and
   honor its assumptions/conventions (distance convention, channel pairing
-  Ch1/Ch3=aux vs Ch2/Ch4=measurement, mode choice diagnostic/cosmetic/none,
+  Ch2/Ch4=aux, Ch1/Ch3=measurement (confirmed by hardware check
+  2026-08-31), mode choice diagnostic/cosmetic/none,
   known artifacts such as the 46.4mm reference peak and the fixed internal
   reflections around 587mm/518mm).
 

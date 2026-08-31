@@ -91,12 +91,15 @@ that this is consistent with whatever the topology turns out to be.
   `md files/measurement_procedure.md` S2). That numeric evidence points to
   Ch2/Ch4 = aux, Ch1/Ch3 = measurement -- opposite of what Carolina
   reported verbally (strong channels = reflectometer signal, weak = aux).
-  **Unresolved — needs a hardware check** (which physical coupler feeds
-  which detector channel) before trusting either assignment. See
-  `logs/2026-08-19.md` for the full numeric comparison.
-  `check_aux_interferometer.py` and `process_reflectogram_aux.py` now
-  accept `--aux-a/--aux-b/--meas-a/--meas-b` to select the pairing
-  explicitly instead of hardcoding it.
+  **RESOLVED 2026-08-31 — hardware check confirms Ch2/Ch4 = aux,
+  Ch1/Ch3 = measurement.** The physical coupler-to-channel wiring was
+  checked directly; this matches the numeric evidence above, not
+  Carolina's earlier verbal report. `check_aux_interferometer.py` and
+  `process_reflectogram_aux.py` now default `--aux-a/--aux-b` to
+  `2`/`4` and `--meas-a/--meas-b` to `1`/`3` accordingly (still
+  overridable if a future wiring change requires it). See
+  `logs/2026-08-19.md` for the full numeric comparison that this
+  confirms.
 - **Fixed internal reflection at z ≈ 587 mm (found 2026-08-20) — READ THIS
   BEFORE INTERPRETING ANY z-axis position from Ch1/Ch3.** Every scan on
   2026-08-20, including a no-fiber control (test port disconnected
