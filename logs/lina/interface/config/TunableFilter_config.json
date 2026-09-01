@@ -1,0 +1,10 @@
+{
+  "TOF1550": {
+    "tof1550-1": {
+      "serial_id": "COM6",
+      "baudrate": 115200,
+      "timeout_s": 1.0,
+      "settle_s": 1.0
+    }
+  }
+}

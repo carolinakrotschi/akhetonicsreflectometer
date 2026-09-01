@@ -1,0 +1,119 @@
+{
+  "created": "2026-09-01_15-41-38",
+  "exfo": "exfo-1",
+  "coredaq": "coredaq-1",
+  "channel": 2,
+  "sweep": {
+    "n_pts": 60000,
+    "rate_hz": 5000,
+    "actual_start_nm": 1520.0,
+    "actual_stop_nm": 1570.0,
+    "actual_speed_nm_s": 5.0,
+    "sweep_s": 10.0,
+    "blocked_s": 10.81300000000192,
+    "requested_start_nm": 1520.0,
+    "requested_stop_nm": 1570.0,
+    "requested_speed_nm_s": 5.0,
+    "acq_state": 3
+  },
+  "points": [
+    {
+      "filter_set_nm": 1530.0,
+      "filter_readback_nm": 1530.0,
+      "true_nm": 1530.0,
+      "fwhm_nm": null,
+      "index": 9811.242403019307,
+      "time_s": 1.9622484806038614,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-39-05"
+    },
+    {
+      "filter_set_nm": 1535.0,
+      "filter_readback_nm": 1535.0,
+      "true_nm": 1535.0,
+      "fwhm_nm": null,
+      "index": 14727.633931831855,
+      "time_s": 2.945526786366371,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-39-26"
+    },
+    {
+      "filter_set_nm": 1540.0,
+      "filter_readback_nm": 1540.0,
+      "true_nm": 1540.0,
+      "fwhm_nm": null,
+      "index": 19656.783875167137,
+      "time_s": 3.9313567750334273,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-39-48"
+    },
+    {
+      "filter_set_nm": 1545.0,
+      "filter_readback_nm": 1545.0,
+      "true_nm": 1545.0,
+      "fwhm_nm": null,
+      "index": 24592.32144801717,
+      "time_s": 4.918464289603434,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-40-10"
+    },
+    {
+      "filter_set_nm": 1550.0,
+      "filter_readback_nm": 1550.0,
+      "true_nm": 1550.0,
+      "fwhm_nm": null,
+      "index": 29531.96493627476,
+      "time_s": 5.906392987254952,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-40-32"
+    },
+    {
+      "filter_set_nm": 1555.0,
+      "filter_readback_nm": 1555.0,
+      "true_nm": 1555.0,
+      "fwhm_nm": null,
+      "index": 34495.12889127915,
+      "time_s": 6.8990257782558295,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-40-54"
+    },
+    {
+      "filter_set_nm": 1560.0,
+      "filter_readback_nm": 1560.0,
+      "true_nm": 1560.0,
+      "fwhm_nm": null,
+      "index": 39467.08690126736,
+      "time_s": 7.893417380253472,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-41-16"
+    },
+    {
+      "filter_set_nm": 1565.0,
+      "filter_readback_nm": 1565.0,
+      "true_nm": 1565.0,
+      "fwhm_nm": null,
+      "index": 44454.581580419115,
+      "time_s": 8.890916316083823,
+      "n_peaks": 2,
+      "timestamp": "2026-09-01_15-41-37"
+    }
+  ],
+  "fit": {
+    "coeffs": [
+      -0.006007746496359912,
+      5.1174236306308485,
+      1519.9789312860019
+    ],
+    "degree": 2,
+    "units": "nm vs seconds from trigger edge",
+    "n_points": 8,
+    "residual_pm_rms": 3.1062804104268023,
+    "residual_pm_max": 5.136778175938161
+  },
+  "derived": {
+    "effective_speed_nm_s": 5.1174236306308485,
+    "buffer_time_s": 0.004117074792317839,
+    "sweep_end_s": 9.889475714151258
+  },
+  "refit": "2026-09-01_15-59-29"
+}

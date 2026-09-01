@@ -1,0 +1,6 @@
+# Raw captures as CSV text: byte-for-byte the same samples as the .npz beside
+# them, but ~1000x larger (a 1.2 M-sample capture is ~25 MB as CSV versus
+# ~30 kB compressed). The scripts only write them when asked with --csv, and
+# any .npz can be re-exported at any time. The .npz files themselves ARE
+# committed — they are the measurement data.
+*.csv
