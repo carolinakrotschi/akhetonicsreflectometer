@@ -9,3 +9,7 @@ raw_data/*.json
 # tracked, same convention as raw_data/ above. (simulation/sim.npz predates
 # this rule and stays tracked as-is.)
 simulation/**/*.npz
+
+# Python bytecode
+__pycache__/
+*.pyc
