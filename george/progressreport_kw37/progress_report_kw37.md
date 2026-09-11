@@ -39,41 +39,35 @@ So at first I did the obvious thing: I took the two loops, used their known desi
 
 **That is circular** and I want to flag it clearly, because I nearly reported it as a result. If I fit n_g so that both loops come out right, then of course they come out right. The only genuinely non-circular thing in there is the *ratio*: two measurements, one n_g, so one degree of freedom is left over. The ratio of the two measured chip paths is 1.026008 and the ratio of the two design paths is 1.028268 — they agree to 0.22 %, and the resolution limit on that ratio is 0.47 %. That part is a real test, and it passes. But it is not a length measurement.
 
-## How I got out of it
+## How I tried to get out of it, and why it did not work
 
-I needed n_g from a structure that is *not* one of the loops. The single-ended channels should do that — they run from a coupler into the circuit, and every component interface along the way is a potential reflector at a known design distance.
+I needed n_g from a structure that is *not* one of the loops. The single-ended channels looked like the way to do it: they run from a coupler into the circuit, and every component interface along the way sits at a design distance I can compute.
 
-The first attempts failed, and it took me a while to understand why:
+Two things had to be fixed first:
 
-- The waveguide trace I had only followed the waveguide up to the *first* component. But the light carries on *through* the components, so I was predicting one reflector when there are dozens.
-- Channels that run deep into the decoder give a dense forest of peaks — 448 peaks above −45 dB over 70 mm for one of them. That is multipath: the decoder has 23 MMI splitters (20 of them 1×2) and six 2R units with two rings each, so twelve ring resonators in which light recirculates. In a forest that dense there is always some peak within 0.17 mm of any prediction, so matching a single peak to a single prediction proves nothing. I fell into exactly that trap once.
+- My waveguide trace only followed the waveguide up to the *first* component. The light carries on *through* the components, so I was predicting one reflector where there are dozens. I therefore built a proper optical netlist out of the GDS: every waveguide polygon contributes its centre-line length, every HHI component contributes the distance between its own optical ports, coincident ports are joined, and Dijkstra from a coupler then gives the path length to every interface in the chip. That part works, and I validated it against known geometry — starting from one coupler of the top loop pair it returns 640.0 µm to the other coupler's port, which is the loop length to 0.13 µm.
+- Channels running deep into the decoder give a dense forest of peaks — 448 peaks above −45 dB over 70 mm for one of them. That is multipath: the decoder has 23 MMI splitters (20 of them 1×2) and six 2R units with two rings each, so twelve ring resonators in which light recirculates.
 
-So I built a proper optical netlist out of the GDS instead: every waveguide polygon contributes its centre-line length, every HHI component contributes the distance between its own optical ports, and coincident ports are connected. Then Dijkstra from a coupler gives the path length to *every* interface in the chip. I validated it on the top loop, where I know the answer: it returns 640.0 µm from one coupler port to the other.
+With the netlist I then found what looked like a clean result: one channel where three predicted interfaces (MMI input, phase shifter, metal crossing) all showed up in the measurement within 0.7 of a resolution cell and gave the same n_g to 0.08 %. I was about to report that as an independent determination of n_g.
 
-With that, channel b2 gives three interfaces that I can find in the measurement:
+**It does not hold, and I want to be explicit about why.** The netlist has 690 interfaces spread over 29 channels. At a matching tolerance of two resolution cells there is a candidate interface near almost any predicted position — so those matches were *selected* by the n_g I had assumed, and cannot then be evidence for it. The test that settles it: sweep n_g from 3.0 to 4.0 and ask how well the best channel assignment fits at each value. If n_g were determinable there would be a clear maximum near 3.48. Instead the score is flat — it stays between 7.3 and 19.3 across the whole range, with its maximum at n_g = 3.02. A flat curve means the data does not contain the information.
 
-| measured Δz | what it is | design path from facet A | → n_g | miss |
-|---|---|---|---|---|
-| 14.6148 mm | MMI 1×2 input | 6166.7 µm | 3.47909 | −6.4 µm |
-| 14.9300 mm | phase shifter PMTO500 | 6296.9 µm | 3.48064 | +0.1 µm |
-| 15.2618 mm | metal crossing | 6442.0 µm | 3.47785 | −12.1 µm |
+The same applies to identifying *which* channel was plugged: the two best candidates come out within 1 % of each other in score, so a reflectogram alone cannot tell me which coupler I am on.
 
-All three within 0.7 of a resolution cell, and the three n_g values agree with each other to 0.08 %. From the strongest peak, with the longest lever:
+## Where that leaves the result
 
-**n_g = 3.4791 ± 0.0059 (0.17 %), and this does not use the loops at all.**
+Honestly: **the circularity is still there.** n_g = 3.4803 ± 0.008 is a calibration against the design lengths of the two loops, not an independent measurement, and I could not verify it from the chip itself.
 
-It agrees with the circular loop value 3.4803 to **0.035 %**. There is a nice self-check in there too: if I had picked the wrong peak for facet A, off by one satellite spacing (0.73 mm), n_g would come out 3.65, i.e. 5 % away. The fact that it lands on 0.035 % confirms the facet identification as well.
+What does hold, and does not depend on any peak-hunting:
 
-## The actual result
+- **The ratio test.** Two loop measurements, one n_g, so one degree of freedom is left over. The measured ratio of the two chip paths is 1.026008 and the design ratio is 1.028268 — they agree to 0.22 %, against a resolution limit of 0.47 % on that ratio. If the geometry or the peak identification were wrong, this would not close.
+- **Each loop reproduces its design path.** Given n_g, the top pair lands 2.3 µm from its predicted facet-to-facet distance and the bottom pair 13.1 µm, i.e. within one and two resolution cells (one cell is 7.0 µm on the chip). The loopback topology is what makes this trustworthy: there are exactly two facets and nothing to interpret.
 
-Applying the b2 group index to the loops — now not circular:
+So what I can defend is: *the measurement is consistent with the design geometry at the resolution limit, and the instrument resolves about 7 µm of on-chip waveguide.* What I cannot yet defend is an absolute length measurement, because that needs n_g from outside.
 
-| loop | Δz measured | loop measured | design | error |
-|---|---|---|---|---|
-| top (b27/b28) | 7.1996 mm | **639.1 µm** | 640.1266 µm | **−1.1 µm** |
-| bottom (b0/b1) | 7.0171 mm | **562.1 µm** | 556.5494 µm | **+5.5 µm** |
+The methodological lesson, which held three times this week: every result that rested on "a peak in a dense spectrum matches a prediction" fell over. Every result where the geometry forces the assignment survived.
 
-One resolution cell is 7.0 µm on the chip, so both are inside one cell. I would say the reflectometer measures on-chip waveguide length to a few µm.
+I also wrote a script that takes a raw scan, calibrates itself, and checks the reflectogram against a *named* channel from the netlist — it prints which component each peak corresponds to and what n_g each one implies, and it has the n_g sweep built in as a check so the failure mode above cannot hide. Without being told the channel it only prints a ranking, with a warning when the top candidates are too close to separate.
 
 Two side results:
 
@@ -95,7 +89,8 @@ And a design request for the next tapeout: two loopback structures with **very**
 ## Plots attached
 
 - **measured_loops_explained.png** — the whole measurement in four rows: the physical chain, the same thing as measured, a zoom on the chip, and a detail on how close facet B lands to its predicted position. The hatched bars in row 3 are model, not data — the loop edges are genuinely not visible in the reflectogram, because the waveguide passes smoothly into the SSC and its ends do not reflect.
-- **b2_netlist_match.png** — the three component interfaces of channel b2 and the three n_g values they give, against the loop value.
+- **netlist_fit_that_failed.png** — the fit that looked like an independent confirmation: three component interfaces of one candidate channel and the three consistent n_g values they give. I am attaching it as the cautionary example, not as evidence — the n_g sweep shows equally good fits exist at any n_g between 3.0 and 4.0, so this picture is convincing and wrong.
+- **loopback_verified.png** — what a trustworthy check looks like instead: the top loop pair against its predicted facet-to-facet distance, where the topology leaves nothing to interpret.
 - **measured_loops_comparison.png** — both loops aligned on facet A; the chip path shrinks by exactly the expected amount for the shorter loop.
 - **gds_loop_top.png** — the loop as drawn, with the length of every segment.
 - **why_circuit_channels_fail.png** — why I can only use loopback channels: loopback gives two peaks and nothing else, a circuit channel gives a forest.
