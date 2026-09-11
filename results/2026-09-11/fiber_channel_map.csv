@@ -1,0 +1,30 @@
+fiber,gds_coupler,position_from_top,design_run_um,expected_delta_z_mm,note
+1,b28,1,640.0,4.3596,loopback mit b27
+2,b27,2,640.0,4.3596,loopback mit b28
+3,b26,3,5126.8,14.9904,langer Weg -- gut fuer n_g
+4,b25,4,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+5,b24,5,1059.0,5.3524,
+6,b23,6,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+7,b22,7,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+8,b21,8,1059.0,5.3524,
+9,b20,9,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+10,b19,10,1059.0,5.3524,
+11,b18,11,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+12,b17,12,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+13,b16,13,482.6,3.9867,
+14,b15,14,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+15,b14,15,1960.2,7.4876,
+16,b13,16,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+17,b12,17,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+18,b11,18,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+19,b10,19,490.9,4.0063,
+20,b9,20,530.8,4.1009,
+21,b8,21,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+22,b7,22,,,"nur 18-um-Stummel, kein nutzbarer Weg"
+23,b6,23,1113.4,5.4812,
+24,b5,24,1072.9,5.3853,
+25,b4,25,442.8,3.8924,
+26,b3,26,2489.6,8.7419,
+27,b2,27,4967.3,14.6125,langer Weg -- gut fuer n_g
+28,b1,28,556.5,4.1618,loopback mit b0
+29,b0,29,556.5,4.1618,loopback mit b1

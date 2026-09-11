@@ -1,0 +1,30 @@
+fiber,gds_coupler,position_from_top,design_run_um,expected_delta_z_mm,type
+4,b28,1,640.0,4.3596,LOOPBACK (Partner b27)
+5,b27,2,640.0,4.3596,LOOPBACK (Partner b28)
+6,b26,3,5126.8,14.9904,Weg
+7,b25,4,,2.8432,STUMPF (nur 18 um)
+8,b24,5,1059.0,5.3524,Weg
+9,b23,6,,2.8432,STUMPF (nur 18 um)
+10,b22,7,,2.8432,STUMPF (nur 18 um)
+11,b21,8,1059.0,5.3524,Weg
+12,b20,9,,2.8432,STUMPF (nur 18 um)
+13,b19,10,1059.0,5.3524,Weg
+14,b18,11,,2.8432,STUMPF (nur 18 um)
+15,b17,12,,2.8432,STUMPF (nur 18 um)
+16,b16,13,482.6,3.9867,Weg
+17,b15,14,,2.8432,STUMPF (nur 18 um)
+18,b14,15,1960.2,7.4876,Weg
+19,b13,16,,2.8432,STUMPF (nur 18 um)
+20,b12,17,,2.8432,STUMPF (nur 18 um)
+21,b11,18,,2.8432,STUMPF (nur 18 um)
+22,b10,19,490.9,4.0063,Weg
+23,b9,20,530.8,4.1009,Weg
+24,b8,21,,2.8432,STUMPF (nur 18 um)
+25,b7,22,,2.8432,STUMPF (nur 18 um)
+26,b6,23,1113.4,5.4812,Weg
+27,b5,24,1072.9,5.3853,Weg
+28,b4,25,442.8,3.8924,Weg
+29,b3,26,2489.6,8.7419,Weg
+30,b2,27,4967.3,14.6125,Weg
+31,b1,28,556.5,4.1618,LOOPBACK (Partner b0)
+32,b0,29,556.5,4.1618,LOOPBACK (Partner b1)

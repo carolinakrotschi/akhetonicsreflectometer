@@ -1,0 +1,3 @@
+loop,channels,scan_file,tau_aux_ns,internal_ref_mm,facet_A_mm,facet_A_dB,facet_B_mm,facet_B_dB,fiber2_end_mm,fiber2_end_dB,delta_z_chip_mm,design_path_um,design_loop_um,fiber1_mm,fiber2_mm,n_g_chip
+top,b27/b28,2026-09-11-12-16hhi1chipsignal,20.3809,573.9284,1670.2266,-9.06,1677.4262,-16.03,2773.6249,-36.8,7.1996,3040.1266,640.1266,1096.2982,1096.1987,3.4765
+bottom,b0/b1,2026-09-11-12-16hhi1chipsignalschleife untendenkeich,20.3807,573.9747,1668.3752,-16.64,1675.3923,-4.14,2770.5062,-23.32,7.0171,2956.5494,556.5494,1094.4005,1095.1139,3.4842

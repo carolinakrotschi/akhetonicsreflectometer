@@ -1,0 +1,6 @@
+measurement,fiber_label,gds_channel,n_SSC_in_path,design_waveguide_um,delta_z_measured_mm,delta_z_fit_mm,residual_um,residual_cells
+top loop,?,b27/b28,2,640.1266,7.1996,7.2074,-7.8,-0.47
+bottom loop,?,b0/b1,2,556.5494,7.0171,7.0094,7.73,0.466
+b2,27,b2,1,4967.278,14.6148,14.6147,0.14,0.008
+
+fit result,n_g_SSC,3.48081,+-0.0121,n_g_waveguide,3.47823,+-0.0078
