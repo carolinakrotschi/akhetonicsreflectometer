@@ -229,9 +229,14 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
                     va="bottom", fontweight="bold")
     stations = [(ref, "internal\nreflection\n%.2f mm" % ref)]
     if zb is not None:
+        extra = ""
+        if d_ff:
+            design_apart = d_ff * 1e-3 * STR
+            extra = ("  |  design %.4f mm  (%+.1f um)"
+                     % (design_apart, (zb - za - design_apart) * 1e3))
         stations.append(((za + zb) / 2,
-                         "facet A %.2f  and  facet B %.2f mm\n(only %.1f mm apart "
-                         "-- see row 3)" % (za, zb, zb - za)))
+                         "facet A %.2f  and  facet B %.2f mm\n"
+                         "measured %.4f mm apart%s" % (za, zb, zb - za, extra)))
     else:
         stations.append((za, "facet A\n%.2f mm" % za))
     if far:
@@ -271,64 +276,70 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
     # ---------------------------------------------------------- Reihe 3
     ax = fig.add_subplot(gs[2])
     span = (zb - za) if zb is not None else 12.0
-    w = (z > za - 2) & (z < za + span + 3)
+    # Fenster von Reihe 3: weit genug, um auch alles neben dem Chip zu
+    # sehen (Default rund 1500..2000 mm), mit --zoom LO HI einstellbar.
+    if getattr(a, "zoom", None):
+        lo3, hi3 = a.zoom
+    else:
+        lo3, hi3 = za - 170.0, za + 330.0
+    w = (z > lo3) & (z < hi3)
     ax.plot(z[w], db[w], lw=1.0, color="navy", zorder=3)
     ax.axvline(za, color="crimson", lw=1.3, zorder=2)
-    ax.annotate("MEASURED facet A\n(%.4f mm)" % za, (za, -47),
-                fontsize=9.5, ha="center", color="crimson",
-                bbox=dict(fc="w", ec="crimson", lw=.8, alpha=.92))
     if zb is not None:
         ax.axvline(zb, color="navy", lw=1.6, zorder=2)
-        ax.annotate("MEASURED facet B\n(%.4f mm)\n= facet A + %.4f mm"
-                    % (zb, zb - za), (zb, -47), fontsize=9.5, ha="center",
-                    color="navy", bbox=dict(fc="w", ec="navy", lw=.8, alpha=.92))
     if zb_e is not None:
         ax.axvline(zb_e, color="green", ls=":", lw=1.8, zorder=2)
-        ax.annotate("design says facet B here\n(%.4f mm)\n%+.1f um off (%.2f cells)"
-                    % (zb_e, (zb - zb_e) * 1e3, (zb - zb_e) / res_mm),
-                    (zb_e, -28), fontsize=8.5, ha="center", color="green",
-                    bbox=dict(fc="w", ec="green", lw=.8, alpha=.92))
 
+    # Alle Kennzahlen als kompakte Zeile(n) OBERHALB der Kurve statt als
+    # Kaesten mitten im Plot -- x in Achsen-Bruchteilen (bleibt also immer
+    # lesbar, egal wie breit --zoom das Fenster macht), y in echten
+    # Datenkoordinaten knapp ueber dem hoechsten sichtbaren Peak.
+    row_items = []
+    row_items.append(("A %.4f mm" % za, "crimson"))
+    if zb is not None:
+        row_items.append(("B %.4f mm  (B-A %.4f mm)" % (zb, zb - za), "navy"))
+    if zb_e is not None:
+        row_items.append(("design B %.4f mm  (%+.1f um, %.2f cells)"
+                          % (zb_e, (zb - zb_e) * 1e3, (zb - zb_e) / res_mm), "green"))
+
+    xs = None
     if d_ff:
         ssc = (d_ff - d_loop) / 2.0
-        yt, h = 20.0, 3.2
-        for s0, s1, c, lab in [(0, ssc, "#d9d9d9", "SSC  %.0f um" % ssc),
-                               (ssc, ssc + d_loop, "gold",
-                                "THE LOOP  %.1f um (design)" % d_loop),
-                               (ssc + d_loop, d_ff, "#d9d9d9", "SSC  %.0f um" % ssc)]:
-            ax.add_patch(Rectangle((za + s0 * 1e-3 * STR, yt),
-                                   (s1 - s0) * 1e-3 * STR, h,
-                                   fc=c, ec="k", lw=.7, alpha=.85, zorder=4))
-            ax.annotate(lab, (za + (s0 + s1) / 2 * 1e-3 * STR, yt + h / 2),
-                        fontsize=8.5, ha="center", va="center", zorder=5,
-                        fontweight="bold" if c == "gold" else "normal")
-        ax.annotate("MODEL,\nNOT measured", (za - 1.9, yt + h / 2), fontsize=8.5,
-                    ha="left", va="center", style="italic", color="dimgray")
-        # Anfang und Ende der Schleife: zwei Linien je Grenze.
-        #   gestrichelt = THEORIE (Designlage aus dem GDS)
-        #   durchgezogen = MESSUNG (naechstliegender echter Peak)
-        # Vorbehalt, der in der Beschriftung steht: die Schleifenenden
-        # reflektieren laut Design gar nicht, der naechste Peak ist also
-        # nicht automatisch die Schleifengrenze -- die Linie zeigt nur,
-        # was dort tatsaechlich gemessen wurde.
-        # THEORIE: zwei gestrichelte Linien, ein gemeinsames Label
         xs = [za + s_um * 1e-3 * STR for s_um in (ssc, ssc + d_loop)]
         for xx in xs:
             ax.axvline(xx, color="darkgoldenrod", ls="--", lw=1.4, zorder=2)
-        ax.annotate("THEORY (design)\nloop starts  %.4f mm\nloop ends    %.4f mm\n"
-                    "width %.4f mm = %.1f um" % (xs[0], xs[1], xs[1] - xs[0], d_loop),
-                    (za - 1.8, 13.0), fontsize=7.5, ha="left", va="center",
-                    color="darkgoldenrod", family="monospace",
-                    bbox=dict(fc="w", ec="darkgoldenrod", lw=.8, alpha=.94))
+        row_items.append(("loop (model) %.4f-%.4f mm = %.1f um"
+                          % (xs[0], xs[1], d_loop), "darkgoldenrod"))
 
     for dzm, lab in (marks or []):
         ax.axvline(za + dzm, color="seagreen", ls=":", lw=1.2, zorder=2)
-        ax.annotate("%s\n(%.3f mm)" % (lab, za + dzm), (za + dzm, -12),
-                    fontsize=8, ha="center", color="darkgreen",
-                    bbox=dict(fc="w", ec="seagreen", lw=.7, alpha=.9))
+        row_items.append(("%s %.3f mm" % (lab, za + dzm), "darkgreen"))
 
-    ax.set_xlim(za - 2, za + span + 3)
-    ax.set_ylim(-52, 26)
+    max_peak = float(np.max(db[w])) if w.any() else 0.0
+    bar_y0 = max(max_peak + 4.0, 5.0)
+    bar_h = 3.0
+    text_y0 = bar_y0 + (bar_h + 2.0 if d_ff else 0.0)
+    row_h = 7.0
+    ncols = 3
+    col_w = 1.0 / ncols
+    n_rows = -(-len(row_items) // ncols)  # ceil
+    for i, (txt, col) in enumerate(row_items):
+        r, c_idx = divmod(i, ncols)
+        ax.annotate(txt, xy=(0.003 + c_idx * col_w, text_y0 + row_h * (n_rows - r)),
+                    xycoords=("axes fraction", "data"), fontsize=7, ha="left",
+                    va="bottom", color=col, clip_on=False)
+
+    if xs is not None:
+        for s0, s1, c in [(0, ssc, "#d9d9d9"),
+                          (ssc, ssc + d_loop, "gold"),
+                          (ssc + d_loop, d_ff, "#d9d9d9")]:
+            ax.add_patch(Rectangle((za + s0 * 1e-3 * STR, bar_y0),
+                                   (s1 - s0) * 1e-3 * STR, bar_h,
+                                   fc=c, ec="k", lw=.5, alpha=.9, zorder=4))
+
+    ax.set_xlim(lo3, hi3)
+    ax.set_ylim(min(-52.0, float(np.min(db[w])) - 3.0),
+                text_y0 + row_h * n_rows + 3.0)
     ax.set_xlabel("distance  [mm]")
     ax.set_ylabel("amplitude  [dB]")
     ax.grid(alpha=.25)
@@ -361,6 +372,8 @@ def main():
                     help="Kanal direkt angeben, z.B. b27 (Alternative zu --fiber)")
     ap.add_argument("--scan-ng", action="store_true",
                     help="Score ueber n_g=3.0..4.0 auftragen (Bestimmbarkeitstest)")
+    ap.add_argument("--zoom", nargs=2, type=float, metavar=("LO", "HI"),
+                    help="x range of row 3 in mm, e.g. --zoom 1500 2000. Default: facet A -170 .. +330 mm")
     ap.add_argument("--out", default=None,
                     help="Prefix fuer die Ausgaben. Ohne Angabe automatisch "
                          "results/<Datum>/<Scanname> -- Datum aus dem "
