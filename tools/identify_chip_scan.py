@@ -182,8 +182,11 @@ def main():
     ap.add_argument("--lam-stop", type=float, default=1570.0)
     ap.add_argument("--zmax", type=float, default=3.0)
     ap.add_argument("--peak-floor-db", type=float, default=-30.0)
+    ap.add_argument("--fiber", type=int, default=None,
+                    help="gesteckte Fasernummer (4..32). Wird ueber "
+                         "b = 32 - Faser in den Kanal umgerechnet.")
     ap.add_argument("--channel", default=None,
-                    help="bekannten Kanal pruefen statt raten, z.B. b27")
+                    help="Kanal direkt angeben, z.B. b27 (Alternative zu --fiber)")
     ap.add_argument("--scan-ng", action="store_true",
                     help="Score ueber n_g=3.0..4.0 auftragen (Bestimmbarkeitstest)")
     ap.add_argument("--out", default=None,
@@ -195,6 +198,28 @@ def main():
     # CSV wird am Suffix erkannt, damit --from-csv nicht noetig ist
     if a.scan.lower().endswith(".csv"):
         a.from_csv = True
+
+    # Fasernummer -> Kanal.  Die Regel b = 32 - Faser stammt aus den
+    # Messungen vom 2026-09-11 (Faser 4 = obere Schleife b28/b27,
+    # Faser 32 = untere Schleife b0/b1) und wurde zweimal bestaetigt:
+    # Faser 6 zeigt den Schaltungs-Peakwald von b26, Faser 7 das leere
+    # Stumpfsignal von b25.
+    if a.fiber is not None:
+        if a.channel:
+            sys.exit("--fiber und --channel schliessen sich aus")
+        if not 4 <= a.fiber <= 32:
+            sys.exit("Fasernummer %d liegt ausserhalb 4..32 -- die 29 Coupler "
+                     "haengen an den Fasern 4 bis 32" % a.fiber)
+        a.channel = "b%d" % (32 - a.fiber)
+        print("Faser %d  ->  Kanal %s  (Regel b = 32 - Faser)"
+              % (a.fiber, a.channel))
+    if a.fiber is None and a.channel is None:
+        m = re.search(r"fiber(\d+)", os.path.basename(a.scan), re.I)
+        if m and 4 <= int(m.group(1)) <= 32:
+            a.fiber = int(m.group(1))
+            a.channel = "b%d" % (32 - a.fiber)
+            print("Fasernummer %d aus dem Dateinamen gelesen  ->  Kanal %s"
+                  % (a.fiber, a.channel))
 
     # Ausgabeordner automatisch: results/<Datum>/<Scanname ohne Endung>
     if a.out is None:
