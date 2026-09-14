@@ -1,4 +1,0 @@
-channel,delta_z_mm,amplitude_dB,onchip_um,design_um,error_um,implied_n_g,device_port
-b2,15.2452,0.0,6432.7,6442.0,-22.0,3.47408,HHI_WGMETxE1700single:o1
-b2,15.3779,-4.03,6488.7,6500.8,-28.7,3.47262,HHI_WGMETxE1700single:o1
-b2,15.4609,-6.21,6523.7,6530.2,-15.4,3.47564,HHI_BJsingle:o1

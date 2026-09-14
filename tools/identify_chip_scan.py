@@ -260,21 +260,21 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
     ax = fig.add_subplot(gs[2])
     span = (zb - za) if zb is not None else 12.0
     w = (z > za - 2) & (z < za + span + 3)
-    ax.plot(z[w] - za, db[w], lw=1.0, color="navy", zorder=3)
-    ax.axvline(0, color="crimson", lw=1.3, zorder=2)
-    ax.annotate("MEASURED PEAK\nfacet A  (x=0 by definition)", (0, -47),
-                fontsize=9, ha="center", color="crimson",
+    ax.plot(z[w], db[w], lw=1.0, color="navy", zorder=3)
+    ax.axvline(za, color="crimson", lw=1.3, zorder=2)
+    ax.annotate("MEASURED facet A\n(%.4f mm)" % za, (za, -47),
+                fontsize=9.5, ha="center", color="crimson",
                 bbox=dict(fc="w", ec="crimson", lw=.8, alpha=.92))
     if zb is not None:
-        ax.axvline(zb - za, color="navy", lw=1.6, zorder=2)
-        ax.annotate("MEASURED PEAK\nfacet B at +%.4f mm" % (zb - za),
-                    (zb - za, -47), fontsize=9, ha="center", color="navy",
-                    bbox=dict(fc="w", ec="navy", lw=.8, alpha=.92))
+        ax.axvline(zb, color="navy", lw=1.6, zorder=2)
+        ax.annotate("MEASURED facet B\n(%.4f mm)\n= facet A + %.4f mm"
+                    % (zb, zb - za), (zb, -47), fontsize=9.5, ha="center",
+                    color="navy", bbox=dict(fc="w", ec="navy", lw=.8, alpha=.92))
     if zb_e is not None:
-        ax.axvline(zb_e - za, color="green", ls=":", lw=1.8, zorder=2)
-        ax.annotate("design says facet B here\n%+.1f um off (%.2f cells)"
-                    % ((zb - zb_e) * 1e3, (zb - zb_e) / res_mm),
-                    (zb_e - za, -33), fontsize=8.5, ha="center", color="green",
+        ax.axvline(zb_e, color="green", ls=":", lw=1.8, zorder=2)
+        ax.annotate("design says facet B here\n(%.4f mm)\n%+.1f um off (%.2f cells)"
+                    % (zb_e, (zb - zb_e) * 1e3, (zb - zb_e) / res_mm),
+                    (zb_e, -28), fontsize=8.5, ha="center", color="green",
                     bbox=dict(fc="w", ec="green", lw=.8, alpha=.92))
 
     if d_ff:
@@ -284,22 +284,23 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
                                (ssc, ssc + d_loop, "gold",
                                 "THE LOOP  %.1f um (design)" % d_loop),
                                (ssc + d_loop, d_ff, "#d9d9d9", "SSC  %.0f um" % ssc)]:
-            ax.add_patch(Rectangle((s0 * 1e-3 * STR, yt),
+            ax.add_patch(Rectangle((za + s0 * 1e-3 * STR, yt),
                                    (s1 - s0) * 1e-3 * STR, h,
                                    fc=c, ec="k", lw=.7, alpha=.85, zorder=4))
-            ax.annotate(lab, ((s0 + s1) / 2 * 1e-3 * STR, yt + h / 2),
+            ax.annotate(lab, (za + (s0 + s1) / 2 * 1e-3 * STR, yt + h / 2),
                         fontsize=8.5, ha="center", va="center", zorder=5,
                         fontweight="bold" if c == "gold" else "normal")
-        ax.annotate("MODEL,\nNOT measured", (-1.9, yt + h / 2), fontsize=8.5,
+        ax.annotate("MODEL,\nNOT measured", (za - 1.9, yt + h / 2), fontsize=8.5,
                     ha="left", va="center", style="italic", color="dimgray")
     for dzm, lab in (marks or []):
-        ax.axvline(dzm, color="seagreen", ls=":", lw=1.2, zorder=2)
-        ax.annotate(lab, (dzm, -12), fontsize=8, ha="center", color="darkgreen",
+        ax.axvline(za + dzm, color="seagreen", ls=":", lw=1.2, zorder=2)
+        ax.annotate("%s\n(%.3f mm)" % (lab, za + dzm), (za + dzm, -12),
+                    fontsize=8, ha="center", color="darkgreen",
                     bbox=dict(fc="w", ec="seagreen", lw=.7, alpha=.9))
 
-    ax.set_xlim(-2, span + 3)
+    ax.set_xlim(za - 2, za + span + 3)
     ax.set_ylim(-52, 17)
-    ax.set_xlabel("distance behind facet A  [mm]")
+    ax.set_xlabel("distance  [mm]")
     ax.set_ylabel("amplitude  [dB]")
     ax.grid(alpha=.25)
     ax.set_title("3)  ZOOM ON THE CHIP.  The bar on top is the design MODEL -- "
