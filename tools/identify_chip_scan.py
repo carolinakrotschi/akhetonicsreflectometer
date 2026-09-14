@@ -1,52 +1,62 @@
-"""Rohscan rein -> Reflektogramm, Anker, und Abgleich gegen einen Kanal.
+"""Raw scan in -> reflectogram, anchors, and a check against one channel.
 
-Nimmt eine rohe HHI-Chipmessung und bestimmt daraus:
-  1. tau_aux (aus dem aux-Interferometer des Scans selbst)
-  2. das Reflektogramm
-  3. die interne Referenzreflexion und die Chip-Eingangsfacette
-  4. den Abgleich der Peaks mit der optischen Netzliste aus dem GDS
-     (`gds_netlist_reflectors.py`), je Bauteil den implizierten n_g
+Takes a raw HHI chip measurement and derives:
+  1. tau_aux, from the scan's own aux interferometer
+  2. the reflectogram
+  3. the internal reference reflection and the chip input facet
+  4. a comparison of the peaks against the optical netlist extracted from
+     the GDS (`gds_netlist_reflectors.py`), with the group index each
+     matched component interface implies
 
-WICHTIGE GRENZE -- bitte lesen, bevor man dem Ergebnis traut:
-   Den Kanal AUS DEN DATEN zu erkennen funktioniert NICHT. Die Netzliste
-   hat 690 Grenzflaechen auf 29 Kanaelen; bei einer Toleranz von zwei
-   Aufloesungszellen findet sich zu praktisch jeder Vorhersage ein Peak.
-   Nachweis: variiert man n_g von 3.0 bis 4.0 (`--scan-ng`), bleibt der
-   beste Score praktisch konstant (7.3 .. 19.3, ohne Maximum bei 3.48).
-   Ein flacher Score heisst: die Daten enthalten die Information nicht.
+IMPORTANT LIMIT -- read this before trusting a result:
+   Identifying the channel FROM THE DATA does not work. The netlist holds
+   700 component interfaces across 29 channels; at a tolerance of two
+   resolution cells there is a candidate near almost any prediction.
+   Proof: sweep n_g from 3.0 to 4.0 (`--scan-ng`) and the best score stays
+   essentially flat (7.3 .. 19.3, with no maximum near 3.48). A flat score
+   means the data does not contain the information.
 
-   Deshalb ist `--channel bNN` der vorgesehene Betrieb: man sagt, welcher
-   Kanal gesteckt war, und das Tool PRUEFT die Vorhersage. Ohne
-   `--channel` wird eine Rangliste ausgegeben, die ausdruecklich NICHT
-   als Identifikation zu lesen ist.
+   `--fiber N` (or `--channel bNN`) is therefore the intended mode: you
+   state which channel was plugged and the tool CHECKS the prediction.
+   Without it you only get a ranking, which is explicitly not to be read
+   as an identification.
 
-   Belastbar ist der Abgleich nur dort, wo die Topologie die Zuordnung
-   erzwingt: bei den Loopback-Paaren (b0/b1 und b27/b28) gibt es genau
-   zwei Facetten und keinen Interpretationsspielraum.
+   The comparison is only trustworthy where the topology forces the
+   assignment: the two loopback pairs (b0/b1 and b27/b28) have exactly two
+   facets and leave nothing to interpret.
 
-Aufruf -- ein Befehl, alles landet im richtigen Ergebnisordner:
+Usage -- one command, everything lands in the right results folder:
 
-    python tools/identify_chip_scan.py raw_data/2026-09-14-09-35_fiber32.json --channel b27
+    python tools/identify_chip_scan.py raw_data/2026-09-14-09-03_fiber4.json
 
-Das legt automatisch an (Datum kommt aus dem Dateinamen, sonst heute):
+The fibre number is read from the file name when it contains `fiberNN`,
+and converted to the channel with b = 32 - fibre. Give `--fiber 4` or
+`--channel b28` explicitly if the name does not carry it.
 
-    results/2026-09-11/<Scanname>_reflectogram.csv    Reflektogramm als Daten
-    results/2026-09-11/<Scanname>_reflectogram.png    Reflektogramm-Plot
-    results/2026-09-11/<Scanname>_identified.csv      Peak -> Bauteil, je n_g
-    results/2026-09-11/<Scanname>_identified.png      annotierter Zoom
+Output goes to results/<date>/<scan name>_*, the date taken from the file
+name (a `YYYY-MM-DD` prefix) and otherwise today:
 
-Ein bereits gerechnetes Reflektogramm geht genauso (CSV wird an der
-Endung erkannt, --from-csv ist nicht noetig):
+    <scan>_reflectogram.csv    the reflectogram as data
+    <scan>_reflectogram.png    reflectogram plot
+    <scan>_chain.png           the three-row plot: chain schematic, the
+                               same chain as measured, zoom on the chip
+    <scan>_identified.csv      peak -> component with the implied n_g
+                               (circuit channels only; a loopback writes
+                               its facet positions instead)
 
-    python tools/identify_chip_scan.py results/2026-09-11/x_reflectogram.csv --channel b0
+An already computed reflectogram works the same way -- a .csv input is
+recognised by its extension:
 
-Optionen
-    --channel   bekannten Kanal pruefen (empfohlen, siehe Grenze oben)
-    --netlist   Reflektortabelle (Default results/2026-09-11/netlist_reflectors.csv)
-    --ng        Gruppenindex des Chips fuer die Vorhersage (Default 3.4791)
-    --tol       Toleranz in Aufloesungszellen (Default 2.0)
-    --scan-ng   Bestimmbarkeitstest ueber n_g = 3.0 .. 4.0
-    --out       eigener Prefix statt der Automatik
+    python tools/identify_chip_scan.py results/2026-09-11/x_reflectogram.csv --fiber 32
+
+Options
+    --fiber     fibre number 4..32, converted with b = 32 - fibre
+    --channel   name the channel directly, e.g. b27 (instead of --fiber)
+    --netlist   reflector table (default results/2026-09-11/netlist_reflectors.csv)
+    --ng        chip group index used for the prediction (default 3.4791)
+    --tol       matching tolerance in resolution cells (default 2.0)
+    --scan-ng   sweep n_g = 3.0 .. 4.0 to test whether it is determinable
+    --out       own output prefix instead of the automatic one
 """
 
 import argparse
