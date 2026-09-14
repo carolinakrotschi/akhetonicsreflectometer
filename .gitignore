@@ -1,7 +1,7 @@
 # Raw EXFO JSON scans are local-only: with the current 1M-datapoint sweeps
 # they run ~150 MB each, well past GitHub's 100 MB file limit. Only the
 # trimmed .npz derivatives (produced alongside each scan) are tracked.
-raw_data/*.json
+raw_data/**/*.json
 
 # Raw synthetic data (~25-30 MB each) under simulation/ -- fully
 # regeneratable by re-running the commands documented alongside each
