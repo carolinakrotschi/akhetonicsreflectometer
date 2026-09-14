@@ -205,7 +205,7 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
     # ---------------------------------------------------------- Reihe 1
     ax = fig.add_subplot(gs[0])
     ax.axis("off")
-    ax.set_xlim(ref - 60, end + 60)
+    ax.set_xlim(0, 500.0 * np.ceil((end + 60) / 500.0))
     ax.set_ylim(-1.2, 1.5)
     segs = [(ref, za, "#9ecae1", "FIBRE 1\n%.1f mm" % (za - ref))]
     if zb is not None:
@@ -240,7 +240,8 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
 
     # ---------------------------------------------------------- Reihe 2
     ax = fig.add_subplot(gs[1])
-    w = (z > ref - 60) & (z < end + 60)
+    xhi = 500.0 * np.ceil((end + 60) / 500.0)     # auf volle 500 mm aufrunden
+    w = (z >= 0) & (z <= xhi)
     ax.plot(z[w], db[w], lw=.5, color="navy")
     for x0, x1, c, lab in segs:
         ax.axvspan(x0, x1, color=c, alpha=.35, zorder=0)
@@ -248,7 +249,8 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
         ax.axvline(x, color="crimson", ls=":", lw=.9)
         ax.annotate(lab.split("\n")[0], (x, 8), fontsize=8.5, ha="center",
                     va="bottom", color="crimson")
-    ax.set_xlim(ref - 60, end + 60)
+    ax.set_xlim(0, xhi)
+    ax.set_xticks(np.arange(0, xhi + 1, 500))
     ax.set_ylim(-70, 26)
     ax.set_xlabel("distance  [mm]")
     ax.set_ylabel("amplitude  [dB]")
