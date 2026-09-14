@@ -26,7 +26,7 @@ WICHTIGE GRENZE -- bitte lesen, bevor man dem Ergebnis traut:
 
 Aufruf -- ein Befehl, alles landet im richtigen Ergebnisordner:
 
-    python tools/identify_chip_scan.py raw_data/2026-09-11-12-16hhi1chipsignal.json --channel b27
+    python tools/identify_chip_scan.py raw_data/2026-09-14-09-35_fiber32.json --channel b27
 
 Das legt automatisch an (Datum kommt aus dem Dateinamen, sonst heute):
 
@@ -294,6 +294,15 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
                         fontweight="bold" if c == "gold" else "normal")
         ax.annotate("MODEL,\nNOT measured", (za - 1.9, yt + h / 2), fontsize=8.5,
                     ha="left", va="center", style="italic", color="dimgray")
+        # Anfang und Ende der Schleife senkrecht durchziehen. Gestrichelt
+        # und golden wie der Modellbalken, damit klar bleibt: das ist die
+        # Designlage, keine Messung -- an diesen Stellen reflektiert nichts.
+        for s_um, lab in ((ssc, "loop starts"), (ssc + d_loop, "loop ends")):
+            xx = za + s_um * 1e-3 * STR
+            ax.axvline(xx, color="darkgoldenrod", ls="--", lw=1.3, zorder=2)
+            ax.annotate("%s (model)\n%.4f mm" % (lab, xx), (xx, 4.5),
+                        fontsize=8.5, ha="center", color="darkgoldenrod",
+                        bbox=dict(fc="w", ec="darkgoldenrod", lw=.8, alpha=.92))
     for dzm, lab in (marks or []):
         ax.axvline(za + dzm, color="seagreen", ls=":", lw=1.2, zorder=2)
         ax.annotate("%s\n(%.3f mm)" % (lab, za + dzm), (za + dzm, -12),
