@@ -76,13 +76,57 @@ def collect_primitive_ports(lib, top):
             if not child.references:            # Primitivzelle = eine Instanz
                 members = [(lab.text, nxf(lab.origin)) for lab in child.labels
                            if lab.layer == PORT_LAYER
-                           and re.fullmatch(r"o\d+", lab.text)]
+                           and re.fullmatch(r"o\d+|left|right|up|down", lab.text)]
                 if len(members) >= 2:
                     out.append((child.name, members))
             walk(child, nxf)
 
     walk(top, lambda pt: pt)
     return out
+
+
+def optical_pairs(cellname, members):
+    """Welche Ports eines Bauteils sind optisch WIRKLICH verbunden.
+
+    Frueher wurde jedes Portpaar verbunden. Das ist bei Bauteilen mit mehr
+    als zwei Ports falsch und hat ein Phantom-Loopback erzeugt:
+    `HHI_WGMETxE1700twin` fuehrt ZWEI unabhaengige Waveguides nebeneinander
+    unter der Metallbruecke hindurch -- o1(0.3,6.5)<->o3(29.7,6.5) ist der
+    eine, o2(0.3,-6.5)<->o4(29.7,-6.5) der andere. Die alte Regel
+    verband auch o1<->o2, also quer ueber 13 um von einem Waveguide auf
+    den anderen, und liess den Pfad so von b9 zu b10 "durchlaufen".
+
+    Regeln:
+      twin      -- parallele, unabhaengige Guides: nach Querversatz paaren
+      crossing  -- zwei kreuzende Guides: left<->right und up<->down
+      sonst     -- Ports auf die zwei Seiten der Laengsachse aufteilen und
+                   jede Nah-Fern-Kombination verbinden (MMI 1x2 und 2x2
+                   koppeln tatsaechlich alle Eingaenge auf alle Ausgaenge)
+    """
+    names = [m[0] for m in members]
+    pts = np.array([m[1] for m in members], float)
+
+    low = cellname.lower()
+    if "crossing" in low:
+        out = []
+        for a, b in (("left", "right"), ("up", "down")):
+            if a in names and b in names:
+                out.append((names.index(a), names.index(b)))
+        return out
+
+    c = pts.mean(0)
+    d = pts - c
+    _, _, vt = np.linalg.svd(d, full_matrices=False)
+    ax = vt[0]
+    proj = d @ ax
+    tr = d @ np.array([-ax[1], ax[0]])
+    near = [i for i in range(len(members)) if proj[i] < 0]
+    far = [i for i in range(len(members)) if proj[i] >= 0]
+    if not near or not far:
+        return []
+    if "twin" in low and len(near) > 1 and len(far) > 1:
+        return [(i, min(far, key=lambda k: abs(tr[k] - tr[i]))) for i in near]
+    return [(i, j) for i in near for j in far]
 
 
 def _perimeter(poly):
@@ -157,11 +201,10 @@ def build(gds):
     for cellname, members in comp_nodes:
         idx = [add_node(p[0], p[1], "dev:%s:%s" % (cellname, nm))
                for nm, p in members]
-        for i in range(len(idx)):
-            for j in range(i + 1, len(idx)):
-                d = math.dist(nodes[idx[i]][:2], nodes[idx[j]][:2])
-                edges[idx[i]].append((idx[j], d))
-                edges[idx[j]].append((idx[i], d))
+        for i, j in optical_pairs(cellname, members):
+            d = math.dist(nodes[idx[i]][:2], nodes[idx[j]][:2])
+            edges[idx[i]].append((idx[j], d))
+            edges[idx[j]].append((idx[i], d))
 
     # koinzidente Knoten verschmelzen (Laenge 0)
     pts = np.array([[n[0], n[1]] for n in nodes])
