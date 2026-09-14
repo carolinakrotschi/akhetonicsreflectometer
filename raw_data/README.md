@@ -1,6 +1,17 @@
 # Raw data — file index
 
-**Not tracked in git** (`.gitignore`'d): with the current 1M-datapoint sweeps,
+**Scans from 2026-09-11 onwards ARE in the repository, as `.npz`.** The raw
+`.json` still cannot be pushed -- each one is ~155 MB, past GitHub's hard
+100 MB per-file limit -- but the same data stored as a compressed `.npz`
+is 11-13 MB, a factor of ~13 smaller, and the conversion is **lossless**:
+the four channel arrays are kept as float64 and verified bit-identical
+after the round trip, and the wavelength axis is kept in full because it
+turned out not to be linear (it deviates up to 0.147 nm from a straight
+line). Converted with `tools/json_to_npz.py`; `process_reflectogram_aux.py`
+reads `.npz` directly, and a reflectogram computed from the `.npz` is
+bit-identical to one computed from the `.json`.
+
+**Older raw JSON: not tracked in git** (`.gitignore`'d): with the current 1M-datapoint sweeps,
 raw JSON scans run ~150 MB each, past GitHub's 100 MB file limit. Only the
 `_trimmed1530.npz` derivative of each scan (produced during processing) is
 committed. This file stays local-only; the mapping below is the record of
