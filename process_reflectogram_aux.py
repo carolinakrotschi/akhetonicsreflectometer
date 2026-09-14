@@ -191,6 +191,24 @@ def build_argparser():
     return p
 
 
+def noise_floor(db):
+    """RMS noise floor of a reflectogram, in the same dB scale as `db`.
+
+    `db` is 20*log10(R/Rmax), so the linear power is 10**(db/10) and the
+    floor -- the RMS of the background -- is 10*log10(mean power).
+
+    The mean is taken as median/ln2 instead of the plain mean: for the
+    Rayleigh-distributed magnitude of a complex-Gaussian background the two
+    are the same, but the median ignores the reflector peaks, so no
+    peak-free window has to be picked by hand. On the bench scans both
+    agree to 0.05 dB inside a quiet window (which is what justifies the
+    Rayleigh assumption), while over the full trace the plain mean comes
+    out ~9 dB too high because the peaks dominate it.
+    """
+    p = 10.0 ** (np.asarray(db, float) / 10.0)
+    return 10.0 * np.log10(np.median(p) / np.log(2.0))
+
+
 def main():
     a = build_argparser().parse_args()
     process(a)
@@ -289,6 +307,12 @@ def process(a):
         warnings.append("main_peak_too_wide")
 
     zmax = a.zmax if a.zmax else z[-1]
+    # over the analysis range only, so this matches the value the exported
+    # CSV yields -- otherwise the quiet tail up to Nyquist drags the floor
+    # ~3 dB down and the reflectogram and the chain plot would disagree.
+    nf = noise_floor(db[z <= zmax])
+    print(f"\nRMS noise floor {nf:.1f} dB   -> dynamic range {-nf:.1f} dB "
+          f"(strongest peak is 0 dB by normalisation)")
     pk, _ = find_peaks(db, height=a.peak_floor_db,
                        distance=max(3, int(200e-6 / (z[1] - z[0]))))
     print(f"\nPeaks above {a.peak_floor_db:.0f} dB:")
@@ -359,6 +383,11 @@ def process(a):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(11, 5))
         ax.plot(z[keep], db[keep], lw=0.6)
+        ax.axhline(nf, color="darkviolet", ls="--", lw=1.1, zorder=4)
+        ax.annotate(f"RMS noise floor {nf:.1f} dB  (dynamic range {-nf:.1f} dB)",
+                    (z[keep][-1], nf), fontsize=8.5, ha="right", va="bottom",
+                    color="darkviolet",
+                    bbox=dict(fc="white", ec="none", alpha=.75, pad=1.0))
         ax.set_xlabel("Distance (m, one-way / reflection convention)")
         ax.set_ylabel("Amplitude (dB rel. maximum)")
         ax.set_title(f"{a.scan} | aux-referenced, {a.window}, "
@@ -373,6 +402,7 @@ def process(a):
 
     return dict(z=z, db=db, R=R, dz_bin=dz_bin, z_nyq=z_nyq,
                 main_peak_m=z[i], peak_width_um=width * 1e6,
+                noise_floor_db=nf,
                 warnings=warnings, comparison=comparison)
 
 

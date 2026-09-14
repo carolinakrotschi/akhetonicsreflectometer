@@ -180,7 +180,8 @@ def identify(zpk, facet_candidates, net, ng, res_mm, tol_cells):
     return ranked
 
 
-def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
+def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None,
+               nf=None):
     """Drei Reihen, so wie sie sich als am aussagekraeftigsten erwiesen haben:
 
       1) Schema der Kette -- gezeichnet, keine Daten
@@ -200,6 +201,7 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
 
     STR = a.ng / N_FIBER
     zb_e = za + d_ff * 1e-3 * STR if d_ff else None
+    nf = P.noise_floor(db) if nf is None else nf
 
     # offenes Ende der zweiten Faser suchen (nur Loopbacks haben eines)
     far = None
@@ -264,9 +266,14 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
         ax.axvline(x, color="crimson", ls=":", lw=.9)
         ax.annotate(lab.split("\n")[0], (x, 8), fontsize=8.5, ha="center",
                     va="bottom", color="crimson")
+    ax.axhline(nf, color="darkviolet", ls="--", lw=1.1, zorder=4)
+    ax.annotate("RMS noise floor %.1f dB  (dynamic range %.1f dB)" % (nf, -nf),
+                (xhi * 0.995, nf + 0.8), fontsize=8, ha="right", va="bottom",
+                color="darkviolet", zorder=5,
+                bbox=dict(fc="white", ec="none", alpha=.75, pad=1.0))
     ax.set_xlim(0, xhi)
     ax.set_xticks(np.arange(0, xhi + 1, 500))
-    ax.set_ylim(-70, 26)
+    ax.set_ylim(min(-70.0, nf - 6.0), 26)
     ax.set_xlabel("distance  [mm]")
     ax.set_ylabel("amplitude  [dB]")
     ax.grid(alpha=.3)
@@ -284,6 +291,7 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
         lo3, hi3 = za - 170.0, za + 330.0
     w = (z > lo3) & (z < hi3)
     ax.plot(z[w], db[w], lw=1.0, color="navy", zorder=3)
+    ax.axhline(nf, color="darkviolet", ls="--", lw=1.1, zorder=4)
     ax.axvline(za, color="crimson", lw=1.3, zorder=2)
     if zb is not None:
         ax.axvline(zb, color="navy", lw=1.6, zorder=2)
@@ -314,6 +322,13 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
     for dzm, lab in (marks or []):
         ax.axvline(za + dzm, color="seagreen", ls=":", lw=1.2, zorder=2)
         row_items.append(("%s %.3f mm" % (lab, za + dzm), "darkgreen"))
+
+    snr = "RMS noise floor %.1f dB" % nf
+    for lab, x in (("A", za), ("B", zb)):
+        if x is not None:
+            snr += "  |  SNR %s %.1f dB" % (
+                lab, float(db[int(np.argmin(np.abs(z - x)))]) - nf)
+    row_items.append((snr, "darkviolet"))
 
     max_peak = float(np.max(db[w])) if w.any() else 0.0
     bar_y0 = max(max_peak + 4.0, 5.0)
@@ -440,6 +455,7 @@ def main():
         res = P.process(ns)
         z, db = res["z"] * 1e3, res["db"]
         res_mm = float(res["dz_bin"]) * 1e3
+        nfl = float(res["noise_floor_db"])
     print("  Auflaesung: %.2f um faseraequivalent = %.2f um on-chip"
           % (res_mm * 1e3, res_mm * 1e3 * N_FIBER / a.ng))
 
@@ -534,7 +550,7 @@ def main():
                      chip - (d_ff - d_loop) - d_loop))
             print("  impliziter n_g     %.5f" % (N_FIBER * (zb - za) / (d_ff * 1e-3)))
             if a.out:
-                chain_plot(a, z, db, ref[0], za, zb, d_ff, d_loop, res_mm)
+                chain_plot(a, z, db, ref[0], za, zb, d_ff, d_loop, res_mm, nf=nfl)
             return
 
     ranked = identify(zpk, fa_c, net, a.ng, res_mm, a.tol)
@@ -557,7 +573,8 @@ def main():
         print("Das ist bei Stumpf-Kanaelen normal (die haben keine Bauteile).")
         if a.out:
             fa = max(fa_c, key=lambda t: t[1])[0]
-            chain_plot(a, z, db, ref[0], fa, None, None, None, res_mm, marks=[])
+            chain_plot(a, z, db, ref[0], fa, None, None, None, res_mm, marks=[],
+                       nf=nfl)
         return
 
     print("\n%s" % ("=" * 78))
@@ -604,7 +621,8 @@ def main():
         print("\nCSV: %s_identified.csv" % a.out)
         marks = [(h[0], h[3].split(":")[0].replace("HHI_", ""))
                  for h in sorted(hits)[:6]]
-        chain_plot(a, z, db, ref[0], fa, None, None, None, res_mm, marks=marks)
+        chain_plot(a, z, db, ref[0], fa, None, None, None, res_mm, marks=marks,
+                   nf=nfl)
 
 
 if __name__ == "__main__":
