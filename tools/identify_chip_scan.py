@@ -24,20 +24,36 @@ WICHTIGE GRENZE -- bitte lesen, bevor man dem Ergebnis traut:
    erzwingt: bei den Loopback-Paaren (b0/b1 und b27/b28) gibt es genau
    zwei Facetten und keinen Interpretationsspielraum.
 
-Aufruf
-    python tools/identify_chip_scan.py raw_data/2026-09-11-...json
-    python tools/identify_chip_scan.py results/.../x_reflectogram.csv --from-csv
+Aufruf -- ein Befehl, alles landet im richtigen Ergebnisordner:
+
+    python tools/identify_chip_scan.py raw_data/2026-09-11-12-16hhi1chipsignal.json --channel b27
+
+Das legt automatisch an (Datum kommt aus dem Dateinamen, sonst heute):
+
+    results/2026-09-11/<Scanname>_reflectogram.csv    Reflektogramm als Daten
+    results/2026-09-11/<Scanname>_reflectogram.png    Reflektogramm-Plot
+    results/2026-09-11/<Scanname>_identified.csv      Peak -> Bauteil, je n_g
+    results/2026-09-11/<Scanname>_identified.png      annotierter Zoom
+
+Ein bereits gerechnetes Reflektogramm geht genauso (CSV wird an der
+Endung erkannt, --from-csv ist nicht noetig):
+
+    python tools/identify_chip_scan.py results/2026-09-11/x_reflectogram.csv --channel b0
 
 Optionen
+    --channel   bekannten Kanal pruefen (empfohlen, siehe Grenze oben)
     --netlist   Reflektortabelle (Default results/2026-09-11/netlist_reflectors.csv)
     --ng        Gruppenindex des Chips fuer die Vorhersage (Default 3.4791)
     --tol       Toleranz in Aufloesungszellen (Default 2.0)
-    --out       Prefix fuer Plot + CSV
+    --scan-ng   Bestimmbarkeitstest ueber n_g = 3.0 .. 4.0
+    --out       eigener Prefix statt der Automatik
 """
 
 import argparse
 import csv
+import datetime
 import os
+import re
 import sys
 
 import numpy as np
@@ -170,8 +186,28 @@ def main():
                     help="bekannten Kanal pruefen statt raten, z.B. b27")
     ap.add_argument("--scan-ng", action="store_true",
                     help="Score ueber n_g=3.0..4.0 auftragen (Bestimmbarkeitstest)")
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--out", default=None,
+                    help="Prefix fuer die Ausgaben. Ohne Angabe automatisch "
+                         "results/<Datum>/<Scanname> -- Datum aus dem "
+                         "Dateinamen, sonst heute.")
     a = ap.parse_args()
+
+    # CSV wird am Suffix erkannt, damit --from-csv nicht noetig ist
+    if a.scan.lower().endswith(".csv"):
+        a.from_csv = True
+
+    # Ausgabeordner automatisch: results/<Datum>/<Scanname ohne Endung>
+    if a.out is None:
+        base = os.path.splitext(os.path.basename(a.scan))[0]
+        for suf in ("_reflectogram", "_trimmed1530", "_full"):
+            if base.endswith(suf):
+                base = base[:-len(suf)]
+        m = re.match(r"(\d{4}-\d{2}-\d{2})", base)
+        day = m.group(1) if m else datetime.date.today().isoformat()
+        a.out = os.path.join("results", day, base)
+        os.makedirs(os.path.dirname(a.out), exist_ok=True)
+        print("Ausgabeordner: %s/  (Prefix %s)"
+              % (os.path.dirname(a.out), os.path.basename(a.out)))
 
     # ---------------------------------------------------------- 1) Daten
     if a.from_csv:
