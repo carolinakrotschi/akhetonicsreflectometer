@@ -1,0 +1,4 @@
+channel,delta_z_mm,amplitude_dB,onchip_um,design_um,error_um,implied_n_g,device_port
+b2,14.93,-17.25,6299.7,6296.9,6.7,3.48066,HHI_PMTOE1700_500_$c575:o2
+b2,15.2784,-29.26,6446.7,6442.0,11.2,3.48164,HHI_WGMETxE1700single:o1
+b2,15.942,-27.01,6726.7,6729.6,-6.9,3.4776,HHI_BJsingle:o2

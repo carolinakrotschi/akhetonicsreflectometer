@@ -1,2 +1,2 @@
 channel,facet_A_mm,facet_B_mm,pigtail_mm,chip_dz_mm,chip_dz_expected_mm,error_um,error_cells,loop_measured_um,loop_design_um,implied_n_g
-b28,1670.2202,1677.4198,1096.294,7.1996,7.202,-2.4,-0.14,639.1,640.0,3.47796
+b27,1670.2266,1677.4262,1096.298,7.1996,7.202,-2.3,-0.14,639.1,640.0,3.47797

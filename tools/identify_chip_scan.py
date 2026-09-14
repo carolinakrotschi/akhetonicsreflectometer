@@ -170,6 +170,148 @@ def identify(zpk, facet_candidates, net, ng, res_mm, tol_cells):
     return ranked
 
 
+def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
+    """Drei Reihen, so wie sie sich als am aussagekraeftigsten erwiesen haben:
+
+      1) Schema der Kette -- gezeichnet, keine Daten
+      2) dieselbe Kette als gemessenes Reflektogramm
+      3) Zoom auf den Chip, mit dem Designmodell als Balken DARUEBER
+         (nicht als Schattierung der Kurve, damit Messung und Modell
+         nicht verwechselt werden koennen)
+
+    `d_ff`/`d_loop`: Facette-zu-Facette- und Schleifenlaenge im Design
+    (Loopback).  Fuer Nicht-Loopback-Kanaele `d_ff=None` und stattdessen
+    `marks` = [(dz_mm, Beschriftung), ...].
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+
+    STR = a.ng / N_FIBER
+    zb_e = za + d_ff * 1e-3 * STR if d_ff else None
+
+    # offenes Ende der zweiten Faser suchen (nur Loopbacks haben eines)
+    far = None
+    if zb is not None:
+        m = (z > zb + 900) & (z < zb + 1300)
+        if m.any() and db[m].max() > np.median(db[m]) + 12:
+            far = float(z[m][np.argmax(db[m])])
+
+    end = far if far else (zb if zb else za)
+    fig = plt.figure(figsize=(13.5, 12))
+    gs = fig.add_gridspec(3, 1, height_ratios=[.62, .95, 1.35], hspace=.5)
+
+    # ---------------------------------------------------------- Reihe 1
+    ax = fig.add_subplot(gs[0])
+    ax.axis("off")
+    ax.set_xlim(ref - 60, end + 60)
+    ax.set_ylim(-1.2, 1.5)
+    segs = [(ref, za, "#9ecae1", "FIBRE 1\n%.1f mm" % (za - ref))]
+    if zb is not None:
+        segs.append((za, zb, "#e15759", "CHIP\n%.3f mm" % (zb - za)))
+    if far:
+        segs.append((zb, far, "#9ecae1", "FIBRE 2\n%.1f mm" % (far - zb)))
+    for x0, x1, c, lab in segs:
+        ax.add_patch(Rectangle((x0, -.28), max(x1 - x0, 8), .56,
+                               fc=c, ec="k", lw=.8))
+        ax.annotate(lab, ((x0 + x1) / 2, .42), fontsize=9.5, ha="center",
+                    va="bottom", fontweight="bold")
+    stations = [(ref, "internal\nreflection\n%.2f mm" % ref)]
+    if zb is not None:
+        stations.append(((za + zb) / 2,
+                         "facet A %.2f  and  facet B %.2f mm\n(only %.1f mm apart "
+                         "-- see row 3)" % (za, zb, zb - za)))
+    else:
+        stations.append((za, "facet A\n%.2f mm" % za))
+    if far:
+        stations.append((far, "open fibre end\n%.2f mm" % far))
+    for x, lab in stations:
+        ax.plot([x], [-.30], marker="v", ms=9, color="crimson", clip_on=False)
+        ax.annotate(lab, (x, -.44), fontsize=8.5, ha="center", va="top",
+                    color="crimson")
+    ax.annotate("light path:  reflectometer -> fibre 1 -> through the chip"
+                + (" -> fibre 2 -> reflects off the open fibre end" if far else "")
+                + " -> all the way back",
+                ((ref + end) / 2, 1.2), fontsize=10, ha="center", style="italic")
+    ax.set_title("1)  WHAT IS PHYSICALLY THERE   (%s, channel %s)"
+                 % (os.path.basename(a.scan), a.channel or "?"),
+                 fontsize=12, loc="left")
+
+    # ---------------------------------------------------------- Reihe 2
+    ax = fig.add_subplot(gs[1])
+    w = (z > ref - 60) & (z < end + 60)
+    ax.plot(z[w], db[w], lw=.5, color="navy")
+    for x0, x1, c, lab in segs:
+        ax.axvspan(x0, x1, color=c, alpha=.35, zorder=0)
+    for x, lab in stations:
+        ax.axvline(x, color="crimson", ls=":", lw=.9)
+        ax.annotate(lab.split("\n")[0], (x, 8), fontsize=8.5, ha="center",
+                    va="bottom", color="crimson")
+    ax.set_xlim(ref - 60, end + 60)
+    ax.set_ylim(-70, 26)
+    ax.set_xlabel("distance  [mm]")
+    ax.set_ylabel("amplitude  [dB]")
+    ax.grid(alpha=.3)
+    ax.set_title("2)  THE SAME THING AS MEASURED -- each peak is one reflector, "
+                 "the coloured stretches are the fibres", fontsize=12, loc="left")
+
+    # ---------------------------------------------------------- Reihe 3
+    ax = fig.add_subplot(gs[2])
+    span = (zb - za) if zb is not None else 12.0
+    w = (z > za - 2) & (z < za + span + 3)
+    ax.plot(z[w] - za, db[w], lw=1.0, color="navy", zorder=3)
+    ax.axvline(0, color="crimson", lw=1.3, zorder=2)
+    ax.annotate("MEASURED PEAK\nfacet A  (x=0 by definition)", (0, -47),
+                fontsize=9, ha="center", color="crimson",
+                bbox=dict(fc="w", ec="crimson", lw=.8, alpha=.92))
+    if zb is not None:
+        ax.axvline(zb - za, color="navy", lw=1.6, zorder=2)
+        ax.annotate("MEASURED PEAK\nfacet B at +%.4f mm" % (zb - za),
+                    (zb - za, -47), fontsize=9, ha="center", color="navy",
+                    bbox=dict(fc="w", ec="navy", lw=.8, alpha=.92))
+    if zb_e is not None:
+        ax.axvline(zb_e - za, color="green", ls=":", lw=1.8, zorder=2)
+        ax.annotate("design says facet B here\n%+.1f um off (%.2f cells)"
+                    % ((zb - zb_e) * 1e3, (zb - zb_e) / res_mm),
+                    (zb_e - za, -33), fontsize=8.5, ha="center", color="green",
+                    bbox=dict(fc="w", ec="green", lw=.8, alpha=.92))
+
+    if d_ff:
+        ssc = (d_ff - d_loop) / 2.0
+        yt, h = 12.0, 3.2
+        for s0, s1, c, lab in [(0, ssc, "#d9d9d9", "SSC  %.0f um" % ssc),
+                               (ssc, ssc + d_loop, "gold",
+                                "THE LOOP  %.1f um (design)" % d_loop),
+                               (ssc + d_loop, d_ff, "#d9d9d9", "SSC  %.0f um" % ssc)]:
+            ax.add_patch(Rectangle((s0 * 1e-3 * STR, yt),
+                                   (s1 - s0) * 1e-3 * STR, h,
+                                   fc=c, ec="k", lw=.7, alpha=.85, zorder=4))
+            ax.annotate(lab, ((s0 + s1) / 2 * 1e-3 * STR, yt + h / 2),
+                        fontsize=8.5, ha="center", va="center", zorder=5,
+                        fontweight="bold" if c == "gold" else "normal")
+        ax.annotate("MODEL,\nNOT measured", (-1.9, yt + h / 2), fontsize=8.5,
+                    ha="left", va="center", style="italic", color="dimgray")
+    for dzm, lab in (marks or []):
+        ax.axvline(dzm, color="seagreen", ls=":", lw=1.2, zorder=2)
+        ax.annotate(lab, (dzm, -12), fontsize=8, ha="center", color="darkgreen",
+                    bbox=dict(fc="w", ec="seagreen", lw=.7, alpha=.9))
+
+    ax.set_xlim(-2, span + 3)
+    ax.set_ylim(-52, 17)
+    ax.set_xlabel("distance behind facet A  [mm]")
+    ax.set_ylabel("amplitude  [dB]")
+    ax.grid(alpha=.25)
+    ax.set_title("3)  ZOOM ON THE CHIP.  The bar on top is the design MODEL -- "
+                 "the loop edges are NOT in the data\n"
+                 "     (they do not reflect: the waveguide passes smoothly into "
+                 "the SSC. Dips are window sidelobes, not structure.)",
+                 fontsize=11.5, loc="left")
+
+    fig.savefig(a.out + "_chain.png", dpi=125, bbox_inches="tight")
+    print("PNG: %s_chain.png" % a.out)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -265,7 +407,8 @@ def main():
     ref = max(refs, key=lambda t: t[1])
     print("  interne Referenzreflexion: %.4f mm (%.2f dB)" % ref)
 
-    fa_c = clusters(z, db, ref[0] + PIGTAIL[0], ref[0] + PIGTAIL[1], -34)
+    fa_c = clusters(z, db, ref[0] + PIGTAIL[0], ref[0] + PIGTAIL[1], -34,
+                    tol_mm=0.08)
     if not fa_c:
         sys.exit("keine Facette-A-Kandidaten im Pigtail-Fenster")
     print("  Facette-A-Kandidaten (Pigtail %s mm): %s"
@@ -273,9 +416,37 @@ def main():
                                 % (p[0], p[1], p[0] - ref[0]) for p in fa_c)))
 
     # ------------------------------------------------------- 3) Abgleich
+    # Clustertoleranz knapp ueber der -3-dB-Breite eines Einzelpeaks
+    # (~50 um): grob geclustert verschmelzen sonst echte Reflektoren, die
+    # nur 100 um auseinanderliegen -- das hat beim 14.09.-Scan die
+    # Facette B verschluckt.
     zpk_all = clusters(z, db, ref[0] + PIGTAIL[0], ref[0] + PIGTAIL[1] + 40,
-                       a.peak_floor_db)
+                       a.peak_floor_db, tol_mm=0.08)
     zpk = drop_satellites(zpk_all)
+
+    # Loopback-Sonderfall: hier erzwingt die Topologie die Zuordnung.
+    # Es gibt genau zwei Facetten, und ihr Abstand steht im Design fest.
+    # Statt einzelne Peaks zu matchen wird das PAAR gesucht, dessen Abstand
+    # am besten zur Design-Facette-zu-Facette-Distanz passt. Das ist der
+    # robusteste Anker, den der Chip hergibt -- und der einzige, der in
+    # den Tests durchweg gehalten hat.
+    loop = None
+    if a.channel:
+        nl = load_netlist(a.netlist).get(a.channel, [])
+        far = [d for d, dev in nl if "SSC" in dev and dev.endswith("o2")]
+        # Nur ein NACHBAR-Coupler ist ein Loopback-Partner. Ueber die
+        # Schaltung erreicht der Graph auch ferne Coupler (b2 kommt nach
+        # 12.7 mm bei einem an) -- das ist kein Loopback. Die drei echten
+        # Schleifen sind 556.5 / 640.0 / 1034.6 um, also Kappe bei 2500.
+        part = [d for d, dev in nl
+                if "SSC" in dev and dev.endswith("o1") and 1 < d < 2500]
+        far = [d for d in far if d < max(part) + 1.1 * SSC] if part else far
+        if far and part:
+            # Netzlistenwege zaehlen ab dem EIGENEN Coupler-PORT. Die
+            # Facette-zu-Facette-Distanz ist deshalb der Weg zur fernen
+            # Facette plus der eigene SSC, den man rueckwaerts mitzaehlt:
+            #   SSC + Schleife + SSC  =  max(o2) + SSC
+            loop = (max(far) + SSC, part[0])   # Facette-zu-Facette, Schleife
     print("  Peaks im Chipbereich: %d, davon %d als Instrument-Satelliten "
           "verworfen -> %d verwendet"
           % (len(zpk_all), len(zpk_all) - len(zpk), len(zpk)))
@@ -284,6 +455,45 @@ def main():
         if a.channel not in net:
             sys.exit("Kanal %s nicht in der Netzliste" % a.channel)
         net = {a.channel: net[a.channel]}
+    if loop is not None:
+        d_ff, d_loop = loop
+        dz_ff = d_ff * 1e-3 * a.ng / N_FIBER
+        # Satelliten auch hier wegwerfen: sie treten um BEIDE Facetten auf,
+        # ein Satellitenpaar hat also denselben Abstand wie das echte Paar
+        # und wuerde sonst mitgewinnen. Unter allen Paaren, die den
+        # Design-Abstand auf < 3 Zellen treffen, gewinnt das staerkste.
+        fa_clean = drop_satellites(fa_c)
+        cands = []
+        for za, da in fa_clean:
+            for zb, dbv in zpk:
+                if zb - za < 1.0:
+                    continue
+                cands.append((abs((zb - za) - dz_ff), za, da, zb, dbv))
+        near = [c for c in cands if c[0] < 3 * res_mm]
+        best = (max(near, key=lambda c: c[2] + c[4]) if near
+                else (min(cands) if cands else None))
+        if best is not None:
+            err, za, da, zb, dbv = best
+            print("\n%s" % ("=" * 78))
+            print("LOOPBACK %s -- die Topologie erzwingt die Zuordnung" % a.channel)
+            print("=" * 78)
+            print("  Facette A      : %.4f mm (%.1f dB), Pigtail %.2f mm"
+                  % (za, da, za - ref[0]))
+            print("  Facette B      : %.4f mm (%.1f dB)" % (zb, dbv))
+            print("  Abstand gemessen %.4f mm   erwartet %.4f mm   -> %+.1f um "
+                  "(%.2f Auflaesungszellen)"
+                  % (zb - za, dz_ff, (zb - za - dz_ff) * 1e3,
+                     (zb - za - dz_ff) / res_mm))
+            chip = (zb - za) * 1e3 * N_FIBER / a.ng
+            print("  Chip-Pfad gemessen %.1f um   Design %.1f um" % (chip, d_ff))
+            print("  Schleife gemessen  %.1f um   Design %.1f um   -> %+.1f um on-chip"
+                  % (chip - (d_ff - d_loop), d_loop,
+                     chip - (d_ff - d_loop) - d_loop))
+            print("  impliziter n_g     %.5f" % (N_FIBER * (zb - za) / (d_ff * 1e-3)))
+            if a.out:
+                chain_plot(a, z, db, ref[0], za, zb, d_ff, d_loop, res_mm)
+            return
+
     ranked = identify(zpk, fa_c, net, a.ng, res_mm, a.tol)
 
     if a.scan_ng:
@@ -302,6 +512,9 @@ def main():
     if not ranked:
         print("\nKEINE Zuordnung gefunden -- kein Kanal erklaert die Peaks.")
         print("Das ist bei Stumpf-Kanaelen normal (die haben keine Bauteile).")
+        if a.out:
+            fa = max(fa_c, key=lambda t: t[1])[0]
+            chain_plot(a, z, db, ref[0], fa, None, None, None, res_mm, marks=[])
         return
 
     print("\n%s" % ("=" * 78))
@@ -346,36 +559,9 @@ def main():
                         "design_um", "error_um", "implied_n_g", "device_port"])
             w.writerows(rows)
         print("\nCSV: %s_identified.csv" % a.out)
-        try:
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(figsize=(13, 6))
-            m = (z > fa - 3) & (z < fa + 22)
-            ax.plot(z[m] - fa, db[m], lw=.9, color="navy")
-            ax.axvline(0, color="crimson", ls="--", lw=1.3)
-            ax.annotate("facet A\n(fibre -> chip)", (0, -48), fontsize=9,
-                        ha="center", color="crimson",
-                        bbox=dict(fc="w", ec="crimson", lw=.8, alpha=.9))
-            for k, (dzo, dbo, dzp, dev, err) in enumerate(sorted(hits)):
-                ax.axvline(dzo, color="seagreen", ls=":", lw=1.3)
-                ax.annotate("%s\n%.4f mm (%+.1f um)"
-                            % (dev.split(":")[0].replace("HHI_", ""), dzo, err),
-                            (dzo, -8 - 9 * (k % 3)), fontsize=8, ha="center",
-                            color="darkgreen",
-                            bbox=dict(fc="w", ec="seagreen", lw=.7, alpha=.93))
-            ax.set_xlabel("distance behind facet A  [mm]")
-            ax.set_ylabel("amplitude  [dB]")
-            ax.set_ylim(-55, 4)
-            ax.grid(alpha=.3)
-            ax.set_title("%s  ->  identified as channel %s : %d component "
-                         "interfaces matched (n_g = %.4f)"
-                         % (os.path.basename(a.scan), ch, len(rows), a.ng))
-            fig.tight_layout()
-            fig.savefig(a.out + "_identified.png", dpi=130)
-            print("PNG: %s_identified.png" % a.out)
-        except Exception as exc:
-            print("(Plot uebersprungen: %s)" % exc)
+        marks = [(h[0], h[3].split(":")[0].replace("HHI_", ""))
+                 for h in sorted(hits)[:6]]
+        chain_plot(a, z, db, ref[0], fa, None, None, None, res_mm, marks=marks)
 
 
 if __name__ == "__main__":
