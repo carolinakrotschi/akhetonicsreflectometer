@@ -281,7 +281,7 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
 
     if d_ff:
         ssc = (d_ff - d_loop) / 2.0
-        yt, h = 12.0, 3.2
+        yt, h = 20.0, 3.2
         for s0, s1, c, lab in [(0, ssc, "#d9d9d9", "SSC  %.0f um" % ssc),
                                (ssc, ssc + d_loop, "gold",
                                 "THE LOOP  %.1f um (design)" % d_loop),
@@ -294,15 +294,44 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
                         fontweight="bold" if c == "gold" else "normal")
         ax.annotate("MODEL,\nNOT measured", (za - 1.9, yt + h / 2), fontsize=8.5,
                     ha="left", va="center", style="italic", color="dimgray")
-        # Anfang und Ende der Schleife senkrecht durchziehen. Gestrichelt
-        # und golden wie der Modellbalken, damit klar bleibt: das ist die
-        # Designlage, keine Messung -- an diesen Stellen reflektiert nichts.
-        for s_um, lab in ((ssc, "loop starts"), (ssc + d_loop, "loop ends")):
-            xx = za + s_um * 1e-3 * STR
-            ax.axvline(xx, color="darkgoldenrod", ls="--", lw=1.3, zorder=2)
-            ax.annotate("%s (model)\n%.4f mm" % (lab, xx), (xx, 4.5),
-                        fontsize=8.5, ha="center", color="darkgoldenrod",
-                        bbox=dict(fc="w", ec="darkgoldenrod", lw=.8, alpha=.92))
+        # Anfang und Ende der Schleife: zwei Linien je Grenze.
+        #   gestrichelt = THEORIE (Designlage aus dem GDS)
+        #   durchgezogen = MESSUNG (naechstliegender echter Peak)
+        # Vorbehalt, der in der Beschriftung steht: die Schleifenenden
+        # reflektieren laut Design gar nicht, der naechste Peak ist also
+        # nicht automatisch die Schleifengrenze -- die Linie zeigt nur,
+        # was dort tatsaechlich gemessen wurde.
+        pk_local = clusters(z, db, za + 0.8, za + (zb - za) - 0.8, -38,
+                            tol_mm=0.08) if zb is not None else []
+        # THEORIE: zwei gestrichelte Linien, ein gemeinsames Label
+        xs = [za + s_um * 1e-3 * STR for s_um in (ssc, ssc + d_loop)]
+        for xx in xs:
+            ax.axvline(xx, color="darkgoldenrod", ls="--", lw=1.4, zorder=2)
+        ax.annotate("THEORY (design)\nloop starts  %.4f mm\nloop ends    %.4f mm\n"
+                    "width %.4f mm = %.1f um" % (xs[0], xs[1], xs[1] - xs[0], d_loop),
+                    (za - 1.8, 13.0), fontsize=7.5, ha="left", va="center",
+                    color="darkgoldenrod", family="monospace",
+                    bbox=dict(fc="w", ec="darkgoldenrod", lw=.8, alpha=.94))
+
+        # MESSUNG: erster und letzter der kraeftigen Peaks zwischen den
+        # Facetten, ebenfalls ein gemeinsames Label. Sie markieren die
+        # gemessene Ausdehnung der Struktur in der Mitte -- ohne zu
+        # behaupten, das seien die Schleifenenden (die reflektieren laut
+        # Design gar nicht).
+        if pk_local:
+            thr = max(p[1] for p in pk_local) - 6.0
+            big = [p for p in pk_local if p[1] >= thr]
+            if len(big) >= 2:
+                for zp, _ in (big[0], big[-1]):
+                    ax.axvline(zp, color="darkorange", ls="-", lw=1.6, zorder=2)
+                w_mm = big[-1][0] - big[0][0]
+                ax.annotate("MEASURED (strong peaks)\nfirst  %.4f mm\nlast   %.4f mm\n"
+                            "extent %.4f mm = %.0f um on chip"
+                            % (big[0][0], big[-1][0], w_mm,
+                               w_mm * 1e3 * N_FIBER / a.ng),
+                            (za + span + 2.8, 13.0), fontsize=7.5, ha="right",
+                            va="center", color="darkorange", family="monospace",
+                            bbox=dict(fc="w", ec="darkorange", lw=.8, alpha=.94))
     for dzm, lab in (marks or []):
         ax.axvline(za + dzm, color="seagreen", ls=":", lw=1.2, zorder=2)
         ax.annotate("%s\n(%.3f mm)" % (lab, za + dzm), (za + dzm, -12),
@@ -310,7 +339,7 @@ def chain_plot(a, z, db, ref, za, zb, d_ff, d_loop, res_mm, marks=None):
                     bbox=dict(fc="w", ec="seagreen", lw=.7, alpha=.9))
 
     ax.set_xlim(za - 2, za + span + 3)
-    ax.set_ylim(-52, 17)
+    ax.set_ylim(-52, 26)
     ax.set_xlabel("distance  [mm]")
     ax.set_ylabel("amplitude  [dB]")
     ax.grid(alpha=.25)
