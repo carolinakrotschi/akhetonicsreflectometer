@@ -23,6 +23,7 @@ import numpy as np
 from scipy.signal.windows import kaiser
 
 import process_reflectogram as op
+from process_reflectogram_aux import noise_floor
 
 C = op.C
 NG = op.NG
@@ -74,10 +75,19 @@ def main():
 
     mL = (z_none * 1000 >= xlo) & (z_none * 1000 <= xhi)
     mC = (z_cos * 1000 >= xlo) & (z_cos * 1000 <= xhi)
-    axL.plot(z_none[mL] * 1000, db_none[mL], label="EXFO grid (as recorded)")
-    axL.plot(z_cos[mC] * 1000, db_cos[mC], label="self-referenced phase")
+    lnA, = axL.plot(z_none[mL] * 1000, db_none[mL], label="EXFO grid (as recorded)")
+    lnB, = axL.plot(z_cos[mC] * 1000, db_cos[mC], label="self-referenced phase")
+    # over the full spectrum, not the plotted +-1 mm window: that window is
+    # all peak and would not measure the background at all
+    nf_none, nf_cos = noise_floor(db_none), noise_floor(db_cos)
+    for nfv, ln in ((nf_none, lnA), (nf_cos, lnB)):
+        axL.axhline(nfv, color=ln.get_color(), ls="--", lw=1.0, alpha=.85)
+    axL.annotate("RMS noise floor  %.1f / %.1f dB" % (nf_none, nf_cos),
+                 (xhi, max(nf_none, nf_cos)), fontsize=8, ha="right",
+                 va="bottom", color="dimgray",
+                 bbox=dict(fc="white", ec="none", alpha=.75, pad=1.0))
     axL.set_xlim(xlo, xhi)
-    axL.set_ylim(-60, 3)
+    axL.set_ylim(min(-60.0, min(nf_none, nf_cos) - 5.0), 3)
     axL.set_xlabel("apparent distance (mm)")
     axL.set_ylabel("dB rel. max")
     axL.set_title(f"MZI peak, {imbalance_cm:.2f} cm imbalance")

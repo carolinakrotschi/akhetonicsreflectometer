@@ -29,12 +29,15 @@ logs/2026-08-31.md for the double-bounce interpretation.
 Usage: python tools/plot_fiber_comparison.py
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
 from scipy.signal import find_peaks
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from process_reflectogram_aux import noise_floor   # noqa: E402
 DATE = "2026-08-31"
 OUT = ROOT / "results" / DATE
 
@@ -169,6 +172,7 @@ def plot_comparison(csv_key, mode, out_path, title, subtitle, xlabel):
 
     fig, ax = plt.subplots(figsize=(20, 8))
     color_counts = {cat: 0 for cat in CATEGORY_COLORS}
+    floors = []
 
     for label, category, csv_calibrated, csv_aux_corrected in SCANS:
         csv_path = csv_calibrated if csv_key == "csv" else csv_aux_corrected
@@ -180,14 +184,18 @@ def plot_comparison(csv_key, mode, out_path, title, subtitle, xlabel):
         color_counts[category] += 1
         lw = 2.2 if category == "combo" else 0.8
 
+        nf = noise_floor(db)
+        floors.append(nf)
         ax.plot(x, db, color=color, lw=lw, alpha=0.85,
-                label=legend_label(label, category, first_mm, important_rel_mm))
+                label=legend_label(label, category, first_mm, important_rel_mm)
+                + f"  | RMS floor {nf:.1f} dB")
+        ax.axhline(nf, color=color, ls="--", lw=0.9, alpha=0.5)
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel("Amplitude (dB relative to each scan's own maximum)")
     ax.set_title(f"{title}\n{subtitle}" if subtitle else title, fontsize=11)
     ax.legend(fontsize=8, title="Scan (fiber length) -- gray=no fiber, red=1m, blue=3m, purple=3m+1m combo")
-    ax.set_ylim(-60, 5)
+    ax.set_ylim(min([-60.0] + [f - 5.0 for f in floors]), 5)
     if mode == "relative":
         ax.set_xlim(-50, 4500)
     else:
@@ -210,7 +218,10 @@ def plot_nofiber_family(out_path):
     for ax, (xmin, xmax), sub_title in zip(axes, ranges, titles):
         for label, csv_path, color, alpha, lw in NOFIBER_FAMILY_SCANS:
             z_mm, db = load_csv(csv_path)
-            ax.plot(z_mm, db, color=color, alpha=alpha, lw=lw, label=label)
+            nf = noise_floor(db)
+            ax.plot(z_mm, db, color=color, alpha=alpha, lw=lw,
+                    label=f"{label}  | RMS floor {nf:.1f} dB")
+            ax.axhline(nf, color=color, ls="--", lw=0.9, alpha=0.5)
         ax.axvline(REFLECTOR_587_MM, color="gray", ls="--", lw=1)
         ax.axvline(REFLECTOR_518_MM, color="gray", ls=":", lw=1)
         ax.set_xlim(xmin, xmax)

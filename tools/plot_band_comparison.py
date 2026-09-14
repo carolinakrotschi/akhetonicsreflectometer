@@ -17,6 +17,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import diagnose_artifacts as da
+from process_reflectogram_aux import noise_floor
 
 RAW = Path(__file__).resolve().parent.parent / "raw_data"
 OUT = Path(__file__).resolve().parent.parent / "results" / "2026-08-18"
@@ -36,13 +37,18 @@ def main():
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
-    print(f"{'condition':25s} {'median dB':>10s} {'max dB':>10s}")
+    print(f"{'condition':25s} {'median dB':>10s} {'max dB':>10s} {'RMS floor':>10s}")
     for path, label in FILES:
         z, R = da.spectrum_diag(*da.preprocess(*da.load(str(path))))
         db = 20 * np.log10(R / R.max() + 1e-15)
         m = (z >= 0.06) & (z <= 0.32)
-        ax.plot(z[m] * 100, db[m], lw=0.6, label=label, alpha=0.8)
-        print(f"{label:25s} {np.median(db[m]):10.1f} {db[m].max():10.1f}")
+        # over the whole spectrum: the 6-32 cm window is the dirt band under
+        # study, so its own level is the signal here, not the background
+        nf = noise_floor(db)
+        ln, = ax.plot(z[m] * 100, db[m], lw=0.6, alpha=0.8,
+                      label="%s  (RMS floor %.1f dB)" % (label, nf))
+        ax.axhline(nf, color=ln.get_color(), ls="--", lw=0.9, alpha=0.55)
+        print(f"{label:25s} {np.median(db[m]):10.1f} {db[m].max():10.1f} {nf:10.1f}")
 
     ax.set_xlabel("apparent distance (cm)")
     ax.set_ylabel("dB rel. own max")

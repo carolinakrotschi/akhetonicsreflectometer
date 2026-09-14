@@ -8,11 +8,17 @@
 
 Aufruf:  python tools/plot_chip_chain.py
 """
+import os
+import sys
+
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from process_reflectogram_aux import noise_floor   # noqa: E402
 
 NF, NG = 1.468, 3.48033      # Gruppenindex Faser / Chip
 STR = NG / NF                # 1 um on-chip -> 2.3704 um im Reflektogramm
@@ -79,6 +85,12 @@ ax = fig.add_subplot(gs[1])
 z, db = load(v0["csv"])
 m = (z > 450) & (z < 2900)
 ax.plot(z[m], db[m], lw=.45, color=v0["col"])
+nf0 = noise_floor(db)
+ax.axhline(nf0, color="darkviolet", ls="--", lw=1.1, zorder=4)
+ax.annotate("RMS noise floor %.1f dB  (dynamic range %.1f dB)" % (nf0, -nf0),
+            (2890, nf0 + 0.8), fontsize=8, ha="right", va="bottom",
+            color="darkviolet", zorder=5,
+            bbox=dict(fc="white", ec="none", alpha=.75, pad=1.0))
 for x0, x1, c, lab in segs:
     ax.axvspan(x0, x1, color=c, alpha=.35, zorder=0)
 for x, lab in [(v0["ref"], "internal reflection"),
@@ -87,7 +99,7 @@ for x, lab in [(v0["ref"], "internal reflection"),
     ax.axvline(x, color="crimson", ls=":", lw=.9)
     ax.annotate(lab, (x, 8), fontsize=8.5, ha="center", va="bottom", color="crimson")
 ax.set_xlim(450, 2900)
-ax.set_ylim(-70, 26)
+ax.set_ylim(min(-70.0, nf0 - 6.0), 26)
 ax.set_xlabel("distance  [mm]")
 ax.set_ylabel("amplitude  [dB]")
 ax.grid(alpha=.3)
@@ -96,11 +108,17 @@ ax.set_title("2)  THE SAME THING AS MEASURED -- each peak is one reflector, the 
 
 # ---------------------------------------------------------------- Reihe 3
 ax = fig.add_subplot(gs[2])
+nfs = []
 for v in S:
     z, db = load(v["csv"])
     m = (z > v["fa"] - 1.4) & (z < v["fa"] + 9.5)
+    nfv = noise_floor(db)
+    nfs.append(nfv)
     ax.plot(z[m] - v["fa"], db[m], lw=1.1, color=v["col"],
             label="%s loop (%s)" % (v["name"], v["ch"]), zorder=3)
+    ax.axhline(nfv, color=v["col"], ls="--", lw=1.0, alpha=.7, zorder=2)
+    ax.annotate("RMS floor %.1f dB" % nfv, (-3.35, nfv + 0.3), fontsize=7.5,
+                ha="left", va="bottom", color=v["col"], zorder=5)
     ax.axvline(v["dz"], color=v["col"], ls="-", lw=1.6, zorder=2)
 ax.axvline(0, color="crimson", ls="-", lw=1.3, zorder=2)
 ax.annotate("MEASURED PEAK\nfacet A  (x=0 by definition)", (0, -45), fontsize=9,
@@ -128,7 +146,7 @@ for v, ytop in zip(S, (13.2, 5.4)):
     ax.annotate("MODEL, %s loop\nNOT measured" % v["name"], (-3.3, ytop + h / 2),
                 fontsize=8.5, ha="left", va="center", style="italic", color="dimgray")
 ax.set_xlim(-3.4, 9.5)
-ax.set_ylim(-54, 19)
+ax.set_ylim(min([-54.0] + [f - 4.0 for f in nfs]), 19)
 ax.set_xlabel("distance behind facet A  [mm]")
 ax.set_ylabel("amplitude  [dB]")
 ax.grid(alpha=.25)

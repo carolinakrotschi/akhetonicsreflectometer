@@ -44,6 +44,8 @@ from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
 from scipy.signal.windows import kaiser, hann, blackmanharris
 
+from process_reflectogram_aux import noise_floor
+
 C = 299_792_458.0
 NG = 1.468          # SMF-28 group index near 1550 nm
 STEP_M = 1e-12      # nominal trigger step: 1 pm
@@ -240,6 +242,8 @@ def main():
 
     prefix = args.out or args.scan.rsplit(".", 1)[0]
     keep = z <= zmax
+    nf = noise_floor(db[keep])
+    print(f"\nRMS noise floor {nf:.1f} dB   -> dynamic range {-nf:.1f} dB")
     np.savetxt(f"{prefix}_reflectogram.csv",
                np.column_stack([z[keep], db[keep]]), delimiter=",",
                header="distance_m,amplitude_dB", comments="")
@@ -251,6 +255,11 @@ def main():
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(11, 5))
         ax.plot(z[keep] * 1000, db[keep], lw=0.6)
+        ax.axhline(nf, color="darkviolet", ls="--", lw=1.1, zorder=4)
+        ax.annotate(f"RMS noise floor {nf:.1f} dB  (dynamic range {-nf:.1f} dB)",
+                    (z[keep][-1] * 1000, nf), fontsize=8.5, ha="right",
+                    va="bottom", color="darkviolet",
+                    bbox=dict(fc="white", ec="none", alpha=.75, pad=1.0))
         ax.set_xlabel("distance (mm, fiber one-way / reflection convention)")
         ax.set_ylabel("amplitude (dB rel. max)")
         ax.set_title(f"{args.scan}  |  mode={args.mode}, {args.window}, "

@@ -77,8 +77,15 @@ def make_plot(a):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    nf = pra.noise_floor(db[keep])
+    print(f"RMS noise floor {nf:.1f} dB   -> dynamic range {-nf:.1f} dB")
     fig, ax = plt.subplots(figsize=(11, 5))
     ax.plot(z[keep], db[keep], lw=0.6)
+    ax.axhline(nf, color="darkviolet", ls="--", lw=1.1, zorder=4)
+    ax.annotate(f"RMS noise floor {nf:.1f} dB  (dynamic range {-nf:.1f} dB)",
+                (z[keep][-1], nf), fontsize=8.5, ha="right", va="bottom",
+                color="darkviolet",
+                bbox=dict(fc="white", ec="none", alpha=.75, pad=1.0))
     ax.set_xlabel("Distance (m, one-way / reflection convention)")
     ax.set_ylabel("Amplitude (dB rel. maximum)")
     ax.set_title(f"{a.scan} | aux-referenced, {a.window}, "
