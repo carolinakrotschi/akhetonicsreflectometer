@@ -1,0 +1,37 @@
+{
+  "measured": "2026-09-14T17:29:55",
+  "tau_aux_ns": 20.387718268898176,
+  "tau_aux_s": 2.0387718268898176e-08,
+  "uncertainty_ps_between_captures": 0.9344749237027528,
+  "uncertainty_ps_between_marker_pairs": 9.744279851299616,
+  "n_captures": 8,
+  "n_pairs": 224,
+  "guards": {
+    "min_band_energy": 0.5,
+    "max_nonmonotonic_frac": 0.01,
+    "max_pair_rel_sd": 0.005
+  },
+  "aux_path_imbalance_m": 4.1629779136660465,
+  "n_group_assumed": 1.4682,
+  "source_calibration": "lina_wl_cal_1520.0-1570.0nm_5.00nms.json",
+  "captures": [
+    "1mA_sweep_ofdr_1mA_run1_2026-09-01_17-13-23.npz",
+    "1mB_sweep_ofdr_run1_2026-09-01_17-03-35.npz",
+    "1mB_sweep_ofdr_run2_2026-09-01_17-06-58.npz",
+    "1mB_sweep_ofdr_run3_2026-09-01_17-07-33.npz",
+    "3mB1mB_sweep_ofdr_run1_2026-09-01_17-37-32.npz",
+    "3mB_sweep_ofdr_run1_2026-09-01_17-21-13.npz",
+    "nofiber_sweep_ofdr_run1_2026-09-01_17-16-56.npz",
+    "sweep_ofdr_3mBonly_check_2026-09-01_17-57-10.npz"
+  ],
+  "per_capture_ns": {
+    "1mA_sweep_ofdr_1mA_run1_2026-09-01_17-13-23.npz": 20.388607655922158,
+    "1mB_sweep_ofdr_run1_2026-09-01_17-03-35.npz": 20.387942166372056,
+    "1mB_sweep_ofdr_run2_2026-09-01_17-06-58.npz": 20.386855027753818,
+    "1mB_sweep_ofdr_run3_2026-09-01_17-07-33.npz": 20.386899978344132,
+    "3mB1mB_sweep_ofdr_run1_2026-09-01_17-37-32.npz": 20.387777805048515,
+    "3mB_sweep_ofdr_run1_2026-09-01_17-21-13.npz": 20.387286323121458,
+    "nofiber_sweep_ofdr_run1_2026-09-01_17-16-56.npz": 20.38966101792009,
+    "sweep_ofdr_3mBonly_check_2026-09-01_17-57-10.npz": 20.388063809817133
+  }
+}
