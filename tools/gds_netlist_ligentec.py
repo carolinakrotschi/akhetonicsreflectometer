@@ -37,8 +37,11 @@ from gds_netlist_reflectors import (ribbon_length, ribbon_ends,   # noqa: E402
 
 GDS = "raw_data/hhi_ligentec/Ligentec_HHI_combined 4.gds"
 WG_LAYER = (2, 0)
+BB_LAYER = (13, 2)     # "BB Cell": Umriss einer Black Box (MMI, Koppler, ...)
 PORT_LAYER = 1002
+BB_TOL = 2.0           # um, Toleranz fuer "Knoten liegt in dieser Box"
 SIN_YMAX = 19313.0     # darueber beginnt der aufgeklebte InP-Chip
+TOP_FACET_Y = 19313.0  # Chip-zu-Chip-Facette, 132 Ports, Pitch 92 um
 SNAP = 1.2             # um, Ports gelten als verbunden
 N_FIBER = 1.468
 CH1_X = 500.0
@@ -104,7 +107,16 @@ def optical_pairs(cellname, members):
     return [(i, j) for i in a for j in b]
 
 
-def build(gds):
+def build(gds, bridge_boxes=False):
+    """`bridge_boxes`: Black Boxes (Layer 13/2) durchlaessig machen.
+
+    Das Innere eines AN350-Bauteils ist nicht auf 2/0 gezeichnet, der Pfad
+    endet sonst an der ersten Box. Zum Verfolgen, WOHIN ein Kanal fuehrt,
+    werden die Wellenleiterenden innerhalb einer Box paarweise mit ihrem
+    Luftlinienabstand verbunden. Das ist eine Naeherung: bei einem Splitter
+    ist der innere Weg ungefaehr gerade, aber die Laenge stimmt nicht
+    exakt. Fuer Weglaengenangaben also aus lassen, fuer Konnektivitaet an.
+    """
     lib = gdstk.read_gds(gds)
     top = lib.top_level()[0]
     flat = top.copy("_flat").flatten()
@@ -142,6 +154,25 @@ def build(gds):
         for i, j in optical_pairs(cellname, members):
             link(idx[i], idx[j],
                  math.dist(nodes[idx[i]][:2], nodes[idx[j]][:2]))
+
+    if bridge_boxes:
+        pts_all = np.array([[n[0], n[1]] for n in nodes])
+        iswg = np.array([n[2] == "wg" for n in nodes])
+        for b in flat.polygons:
+            if (b.layer, b.datatype) != BB_LAYER or b.points[:, 1].mean() > SIN_YMAX:
+                continue
+            xs, ys = b.points[:, 0], b.points[:, 1]
+            sel = np.where(iswg
+                           & (pts_all[:, 0] >= xs.min() - BB_TOL)
+                           & (pts_all[:, 0] <= xs.max() + BB_TOL)
+                           & (pts_all[:, 1] >= ys.min() - BB_TOL)
+                           & (pts_all[:, 1] <= ys.max() + BB_TOL))[0]
+            for ii in range(len(sel)):
+                for jj in range(ii + 1, len(sel)):
+                    i, j = int(sel[ii]), int(sel[jj])
+                    d = math.dist(nodes[i][:2], nodes[j][:2])
+                    if d > 1.0:
+                        link(i, j, d)
 
     pts = np.array([[n[0], n[1]] for n in nodes])
     order = np.argsort(pts[:, 0])
