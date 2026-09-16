@@ -1,0 +1,5 @@
+channel,cell,s_from_facet_um,s_to_um,n_interfaces,dz_from_mm,dz_to_mm
+b0,SSC end,1199.4,1199.4,1,2.8416,2.8416
+b0,loop 556.5 um (kein Reflex),1199.4,1755.9,1,2.8416,4.16
+b0,SSC end,1755.9,1755.9,1,4.16,4.16
+b0,chip facet,2955.3,2955.3,1,7.0016,7.0016

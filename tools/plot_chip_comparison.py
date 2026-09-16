@@ -87,10 +87,24 @@ def main():
     ap.add_argument("--scan", nargs=2, action="append", required=True,
                     metavar=("LABEL", "CSV"),
                     help="mehrfach angebbar, mindestens zweimal")
-    ap.add_argument("--peak-window", nargs=2, type=float, required=True,
+    ap.add_argument("--peak-window", nargs=2, type=float, default=None,
                     metavar=("LO_MM", "HI_MM"),
                     help="mm, Suchfenster fuer den Hauptpeak jeder Kurve "
-                         "-- muss alle Facetten enthalten")
+                         "-- muss alle Facetten enthalten. Entfaellt, wenn "
+                         "fuer JEDE Spur --facet gesetzt ist")
+    ap.add_argument("--facet", action="append", default=None, metavar="MM",
+                    help="Facette A dieser Spur in mm statt 'staerkster Peak "
+                         "im Fenster' -- einmal je --scan, in derselben "
+                         "Reihenfolge; 'auto' faellt auf die Peaksuche "
+                         "zurueck. Noetig, wo der staerkste Peak NICHT die "
+                         "Facette ist (HHI-Loopback: Facette B ist bis zu "
+                         "12 dB staerker) oder wo die Facette gar nicht "
+                         "sichtbar ist und aus der Pigtail-Familie kommt")
+    ap.add_argument("--facet-unc", type=float, default=0.0, metavar="MM",
+                    help="Unsicherheit der Facette-A-Position in mm. Die "
+                         "Marken bekommen dann einen zweiten, helleren "
+                         "Rand: um so viel kann das GANZE Bauteilmuster "
+                         "verschoben sein (default 0 = nicht zeichnen)")
     ap.add_argument("--zoom-pad", type=float, default=0.5,
                     help="mm Rand links/rechts der aeussersten Peaks im "
                          "Facettenpanel (default 0.5)")
@@ -106,22 +120,49 @@ def main():
                     help="Unsicherheitsbereich des Gruppenindex fuer die Marken")
     ap.add_argument("--marks-zmax", type=float, default=13.0,
                     help="mm hinter der Facette, bis wohin das Bauteilpanel geht")
+    ap.add_argument("--marks-zoom", nargs=2, type=float, default=None,
+                    metavar=("LO_MM", "HI_MM"),
+                    help="Fenster des untersten Panels von Hand setzen. Der "
+                         "Automatik-Zoom spannt von der ersten bis zur "
+                         "letzten Marke auf -- bei HHI-Schaltungskanaelen "
+                         "sind das 33 Marken ueber 32 mm, da zoomt nichts "
+                         "mehr")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
+    facets = a.facet if a.facet else ["auto"] * len(a.scan)
+    if len(facets) != len(a.scan):
+        raise SystemExit("--facet %dx gegen --scan %dx -- es muss zu jeder "
+                         "Spur genau eine Angabe geben"
+                         % (len(facets), len(a.scan)))
+    if any(f == "auto" for f in facets) and not a.peak_window:
+        raise SystemExit("--peak-window fehlt (wird fuer 'auto' gebraucht)")
+
     scans = []
-    for label, csv in a.scan:
+    for (label, csv), fa in zip(a.scan, facets):
         z, db = load(csv)
-        pw = peak_and_width(z, db, *a.peak_window)
-        if pw is None:
-            raise SystemExit("kein Peak im Fenster %s fuer %r" % (a.peak_window, label))
-        zp, top, w = pw
+        if fa == "auto":
+            pw = peak_and_width(z, db, *a.peak_window)
+            if pw is None:
+                raise SystemExit("kein Peak im Fenster %s fuer %r"
+                                 % (a.peak_window, label))
+            zp, top, w = pw
+            how = ""
+        else:
+            # Facette gesetzt: Hoehe/Breite trotzdem am naechstgelegenen
+            # lokalen Peak ablesen, damit die Zahl vergleichbar bleibt --
+            # aber die Achse wird auf den GESETZTEN Wert genullt.
+            zp = float(fa)
+            pw = peak_and_width(z, db, zp - 0.15, zp + 0.15)
+            top, w = (pw[1], pw[2]) if pw else (float("nan"), float("nan"))
+            how = " (gesetzt)"
         fl = noise_floor(db)
         scans.append(dict(z=z, db=db, label=label, zp=zp, w=w, floor=fl,
-                          n=len(z), dz=float(np.median(np.diff(z))) * 1e3))
-        print("%-32s  Peak %10.4f mm   -3 dB %7.1f um   %+6.1f dB ueber Boden  "
-              "Bins %8d a %.2f um"
-              % (label, zp, w * 1e3, top - fl, len(z), scans[-1]["dz"]))
+                          n=len(z), dz=float(np.median(np.diff(z))) * 1e3,
+                          how=how))
+        print("%-32s  Facette A %10.4f mm%-10s -3 dB %7.1f um   "
+              "%+6.1f dB ueber Boden  Bins %8d a %.2f um"
+              % (label, zp, how, w * 1e3, top - fl, len(z), scans[-1]["dz"]))
 
     zps = [s["zp"] for s in scans]
     print("\nPeakpositionen streuen ueber %.1f um (%.4f .. %.4f mm)"
@@ -178,17 +219,23 @@ def main():
         # Bauteile liegen ON-CHIP; die z-Achse ist faseraequivalent
         # (n_g = 1.468). Deshalb die on-chip-Weglaenge mit n_g_chip/n_Faser
         # skalieren -- das graue Band ist die Unsicherheit in n_g_chip.
-        bands = [(short_name(nm), s_um * 1e-3 * a.ng[0] / N_FIBER,
-                  s_um * 1e-3 * a.ng[1] / N_FIBER) for nm, s_um in marks]
+        bands = [(short_name(nm), s0 * 1e-3 * a.ng[0] / N_FIBER,
+                  s1 * 1e-3 * a.ng[1] / N_FIBER) for nm, s0, s1 in marks]
         # Der Edge Coupler klebt an der Facette; wuerde er den Zoom
         # aufspannen, waere der Rest wieder zusammengequetscht.
-        far = [b for b in bands if b[2] > 1.0] or bands
-        pad = 0.15 * (max(b[2] for b in far) - min(b[1] for b in far) or 1.0)
-        zoom_m = (min(b[1] for b in far) - pad, max(b[2] for b in far) + pad)
+        if a.marks_zoom:
+            zoom_m = tuple(a.marks_zoom)
+        else:
+            far = [b for b in bands if b[2] > 1.0] or bands
+            pad = 0.15 * (max(b[2] for b in far) - min(b[1] for b in far) or 1.0)
+            zoom_m = (min(b[1] for b in far) - pad, max(b[2] for b in far) + pad)
 
         for row, (lo_x, hi_x, ttl) in enumerate((
                 (-0.3, a.marks_zmax,
-                 "predicted component positions (grey: n_g %.2f-%.2f)" % tuple(a.ng)),
+                 "predicted component positions (grey: n_g %.4f-%.4f%s)"
+                 % (a.ng[0], a.ng[1],
+                    ", light: +/- %.2f mm facet A anchor" % a.facet_unc
+                    if a.facet_unc else "")),
                 (zoom_m[0], zoom_m[1], "component area, zoomed"))):
             axm = ax[3 + row]
             for i, s_ in enumerate(scans):
@@ -199,12 +246,23 @@ def main():
                          label=s_["label"] if row == 0 else None)
                 axm.axhline(s_["floor"], color=c, ls=":", lw=0.8)
             for i, (name, lo_, hi_) in enumerate(bands):
+                if a.facet_unc:
+                    axm.axvspan(lo_ - a.facet_unc, hi_ + a.facet_unc,
+                                color="0.5", alpha=0.10, lw=0)
                 axm.axvspan(lo_, hi_, color="0.5", alpha=0.22, lw=0)
+                # Bei HHI ist n_g auf 0.01 % bekannt und eine Einzelmarke
+                # damit 4 um breit -- als Flaeche waere sie unsichtbar.
+                if hi_ - lo_ < 0.01 * (hi_x - lo_x):
+                    axm.axvline(0.5 * (lo_ + hi_), color="0.45", lw=0.8,
+                                alpha=0.55, zorder=1)
+                nrow_lab = 4 if len(bands) > 12 else 3
                 axm.annotate(name,
-                             xy=(0.5 * (lo_ + hi_), 0.97 - 0.30 * (i % 3)),
+                             xy=(0.5 * (lo_ + hi_),
+                                 0.98 - (0.94 / nrow_lab) * (i % nrow_lab)),
                              xycoords=("data", "axes fraction"),
-                             fontsize=7, rotation=90, ha="center", va="top",
-                             color="0.2")
+                             fontsize=6 if len(bands) > 12 else 7,
+                             rotation=90, ha="center", va="top",
+                             clip_on=True, color="0.2")
             axm.set_xlim(lo_x, hi_x)
             axm.set_ylabel("amplitude [dB]")
             axm.text(0.5, 1.0, ttl, transform=axm.transAxes, ha="center",

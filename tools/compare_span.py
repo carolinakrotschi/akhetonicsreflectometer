@@ -53,20 +53,28 @@ def envelope(z, db, nout):
 
 
 def load_marks(path):
-    """Bauteile aus der GDS-Spur. Zurueck kommt (Name, s_ab_Facette_um) je
-    Bauteil; Containerzellen ohne eigene Grenzflaeche fliegen raus, sonst
-    steht im Plot dreimal derselbe Strich."""
+    """Bauteile aus der GDS-Spur. Zurueck kommt (Name, s_von_um, s_bis_um)
+    je Bauteil; Containerzellen ohne eigene Grenzflaeche fliegen raus, sonst
+    steht im Plot dreimal derselbe Strich.
+
+    `s_bis_um` ist optional: die Ligentec-Spuren
+    (`gds_trace_ligentec.py`) geben pro Bauteil eine einzelne Position,
+    dort ist s_bis = s_von und die Markenbreite kommt allein aus der
+    n_g-Unsicherheit. Die HHI-Marken (`hhi_channel_marks.py`) fassen
+    dagegen Grenzflaechen-Ketten zu einer Gruppe zusammen und tragen
+    deren echte Ausdehnung in `s_to_um`."""
     skip = ("XGM_2_Decoder", "XGMx3_SiN", "MZM_switch", "EdgeCoupler_BB",
             "MMI_1x2_BB", "_metal", "cross_array")
     out = []
     with open(path) as fh:
         head = fh.readline().strip().split(",")
         ic, isf = head.index("cell"), head.index("s_from_facet_um")
+        ist = head.index("s_to_um") if "s_to_um" in head else isf
         for line in fh:
             f = line.strip().split(",")
-            if not f or len(f) <= max(ic, isf) or any(s in f[ic] for s in skip):
+            if not f or len(f) <= max(ic, isf, ist) or                     any(s in f[ic] for s in skip):
                 continue
-            out.append((f[ic], float(f[isf])))
+            out.append((f[ic], float(f[isf]), float(f[ist])))
     out.sort(key=lambda t: t[1])
     return out
 
@@ -220,8 +228,8 @@ def main():
         # wird, was DAHINTER passiert), darueber die Sollpositionen. Panel 5
         # zoomt auf den Bauteilbereich -- auf 12 mm Breite ist ein 200 um
         # breites MMI-Fenster sonst ein Strich.
-        bands = [(short_name(nm), s_um * 1e-3 * a.ng[0] / N_FIBER,
-                  s_um * 1e-3 * a.ng[1] / N_FIBER) for nm, s_um in marks]
+        bands = [(short_name(nm), s0 * 1e-3 * a.ng[0] / N_FIBER,
+                  s1 * 1e-3 * a.ng[1] / N_FIBER) for nm, s0, s1 in marks]
         # Der Edge Coupler klebt an der Facette; wuerde er den Zoom
         # aufspannen, waere der Rest wieder zusammengequetscht.
         far = [b for b in bands if b[2] > 1.0] or bands
