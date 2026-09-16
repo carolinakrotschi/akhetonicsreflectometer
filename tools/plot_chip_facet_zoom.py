@@ -34,13 +34,13 @@ ANCHOR = 529.43
 CONN = 557.045
 
 SCANS = [
-    ("Faser 1  (Kanal 95, Loopback)",
+    ("Fiber 1  (channel 95, loopback)",
      "raw_data/2672_ligentechhi_2026-09-14-16-02_Ligentecfiber1_reflectogram.csv"),
-    ("Faser 44  (Kanal 52)",
+    ("Fiber 44  (channel 52)",
      "raw_data/2672_ligentechhi_2026-09-14-16-36_Ligentecfiber44_reflectogram.csv"),
-    ("Faser 45  (Kanal 51)",
+    ("Fiber 45  (channel 51)",
      "raw_data/2672_ligentechhi_2026-09-15-08-19_ligentecfiber45wavelenght1520to1570nm_reflectogram.csv"),
-    ("Faser 48  (Kanal 48)",
+    ("Fiber 48  (channel 48)",
      "raw_data/2672_ligentechhi_2026-09-15-09-34_Ligentecfiber48_reflectogram.csv"),
 ]
 CONTROL_CSV = "raw_data/2672_ligentechhi_2026-09-14-16-19_ligentecnofiber_reflectogram.csv"
@@ -64,7 +64,7 @@ def main():
     for s in ax:
         s.set_facecolor(SURFACE)
 
-    print("%-32s %12s %10s %12s" % ("Kanal", "Facette [mm]", "Dynamik", "Breite"))
+    print("%-32s %12s %10s %12s" % ("channel", "facet [mm]", "dyn. range", "width"))
     F = []
     for k, (label, path) in enumerate(SCANS):
         z, y = load(path)
@@ -99,9 +99,9 @@ def main():
     ma = (z48 > ANCHOR - 0.12) & (z48 < ANCHOR + 0.12)
     ycn = (yc - yc[mc].max()) + y48[ma].max()
     ax[0].plot(zc - CONN, ycn, lw=0.8, color=CONTROL, zorder=1,
-               label="Kontrolle (nichts angeschlossen)")
+               label="control (nothing connected)")
     ax[1].plot(zc - 1582.0, ycn, lw=0.8, color=CONTROL, zorder=1,
-               label="Kontrolle (nichts angeschlossen)")
+               label="control (nothing connected)")
 
     lo0 = min(f[3] for f in F) - CONN - 4
     hi0 = max(f[3] for f in F) - CONN + a.behind
@@ -116,16 +116,16 @@ def main():
         for sp in ("left", "bottom"):
             s.spines[sp].set_color(GRID)
         s.tick_params(colors=INK2, labelsize=9)
-        s.set_ylabel("Amplitude rel. eigener Facette  [dB]", color=INK2, fontsize=10)
+        s.set_ylabel("amplitude rel. to own facet  [dB]", color=INK2, fontsize=10)
         s.legend(frameon=False, fontsize=8.5, labelcolor=INK2,
                  loc="upper left", ncol=1)
 
-    ax[0].set_xlabel("Abstand ab Steckerebene  [mm]", color=INK2, fontsize=10.5)
-    ax[1].set_xlabel("Abstand hinter der eigenen Facette A  [mm]", color=INK2, fontsize=10.5)
-    ax[0].set_title("Chipfacette, alle vier Ligentec-Kanaele -- wo sie liegen",
+    ax[0].set_xlabel("distance from connector plane  [mm]", color=INK2, fontsize=10.5)
+    ax[1].set_xlabel("distance behind own facet A  [mm]", color=INK2, fontsize=10.5)
+    ax[0].set_title("Chip facet, all four Ligentec channels (MAP2672) -- where they sit",
                     color=INK, fontsize=13, fontweight="bold", loc="left")
-    ax[1].set_title("Dieselben Daten, jeder Kanal auf seine eigene Facette zentriert -- "
-                    "was dahinter kommt",
+    ax[1].set_title("Same data, each channel centred on its own facet -- "
+                    "what comes behind it",
                     color=INK, fontsize=12, fontweight="bold", loc="left")
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
