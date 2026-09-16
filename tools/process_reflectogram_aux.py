@@ -164,6 +164,12 @@ def build_argparser():
     p.add_argument("--window", default="kaiser",
                    choices=["hann", "blackmanharris", "kaiser"])
     p.add_argument("--kaiser-beta", type=float, default=12.0)
+    p.add_argument("--pad-factor", type=int, default=1,
+                   help="zero-pad the FFT to this multiple. It INTERPOLATES "
+                        "the peak shape, it does NOT improve resolution -- "
+                        "use it when comparing peak widths between window "
+                        "settings, otherwise you only measure the bin grid "
+                        "(4-8 is plenty)")
     p.add_argument("--zmax", type=float, default=None)
     p.add_argument("--peak-floor-db", type=float, default=-45.0)
     p.add_argument("--trim", type=float, default=0.01,
@@ -207,6 +213,34 @@ def noise_floor(db):
     """
     p = 10.0 ** (np.asarray(db, float) / 10.0)
     return 10.0 * np.log10(np.median(p) / np.log(2.0))
+
+
+def window_limit_bins(win, pad):
+    """-3 dB width of the window's own main lobe, in unpadded FFT bins.
+
+    Measured, not looked up in a table, and measured on EXACTLY the grid the
+    data is measured on (same window length, same pad factor): a peak width
+    read off a 1x grid is quantised to whole bins, so it can only be compared
+    against a limit that carries the same quantisation. A hard-coded number
+    (the old table had kaiser 2.6 / hann 1.6) is the true continuous value
+    and silently becomes the wrong reference as soon as --pad-factor changes.
+
+    Probe is a cosine sitting half a bin off grid -- the worst case, and the
+    normal case for a real reflector, which has no reason to land on a bin.
+    At pad 1 that gives the same whole-bin quantisation the data suffers;
+    with padding it converges to the window's true main-lobe width.
+    """
+    n = win.size
+    probe = np.cos(2 * np.pi * (n // 8 + 0.5) * np.arange(n) / n)
+    s = np.abs(np.fft.rfft(probe * win, n=n * pad))
+    i = int(np.argmax(s))
+    half = s[i] / np.sqrt(2.0)
+    l = r = i
+    while l > 0 and s[l] > half:
+        l -= 1
+    while r < len(s) - 1 and s[r] > half:
+        r += 1
+    return (r - l) / pad
 
 
 def main():
@@ -286,9 +320,14 @@ def process(a):
 
     win = {"hann": hann(m), "blackmanharris": blackmanharris(m),
            "kaiser": kaiser(m, a.kaiser_beta)}[a.window]
-    R = np.abs(np.fft.rfft(y * win))
-    z = np.arange(len(R)) * C / (2 * NG * dnu * m)
+    pad = max(1, a.pad_factor)
+    m_fft = m * pad
+    R = np.abs(np.fft.rfft(y * win, n=m_fft))
+    z = np.arange(len(R)) * C / (2 * NG * dnu * m_fft)
     db = 20 * np.log10(R / R.max() + 1e-15)
+    if pad > 1:
+        print(f"  zero-padded {pad}x: plot grid {(z[1]-z[0])*1e6:.2f} um "
+              f"(resolution is still {dz_bin*1e6:.2f} um)")
 
     i = int(np.argmax(R))
     half = R[i] / np.sqrt(2)
@@ -298,7 +337,7 @@ def process(a):
     while r < len(R) - 1 and R[r] > half:
         r += 1
     width = (r - l) * (z[1] - z[0])
-    wlim = {"hann": 1.6, "blackmanharris": 2.7, "kaiser": 2.6}[a.window]
+    wlim = window_limit_bins(win, pad)
     print(f"\nMain peak {z[i]*1000:.4f} mm, -3 dB width {width*1e6:.1f} um "
           f"(window limit ~{wlim*dz_bin*1e6:.1f} um)")
     if width > 2 * wlim * dz_bin:
