@@ -244,7 +244,8 @@ def main():
     plot_comparison(
         csv_key="csv", mode="relative",
         out_path=OUT / "fiber_comparison_relative_to_connector.png",
-        title="with aux correction",
+        title="Fibre lengths on the fringe-counting-calibrated tau_aux axis "
+              "(NO aux correction)",
         subtitle="",
         xlabel="Distance relative to each scan's own connector peak (mm)",
     )
@@ -262,7 +263,8 @@ def main():
     plot_comparison(
         csv_key="aux_csv", mode="relative",
         out_path=OUT / "fiber_comparison_aux_corrected.png",
-        title="without aux correction",
+        title="Fibre lengths with dL forced to the nominal aux length "
+              "(aux-corrected)",
         subtitle="",
         xlabel="Distance relative to each scan's own connector peak (mm)",
     )

@@ -94,3 +94,77 @@ but the two lengths don't reconcile by a simple convention mixup (`fold 0.5`
 and `fold 1.046` predict different apparent band positions). See the
 "Test fiber length" note in `HANDOVER.md`'s hardware section for the
 candidate explanations and the suggested `alias` pair test to settle it.
+
+## Ligentec-SiN-Chip (Faserarray an der unteren Kante, 95 Kanaele)
+
+**Chip-Praefix-Konvention (ab 2026-09-16):** alle Scans bis einschliesslich
+2026-09-15 stammen vom selben physischen Chip, **MAP2672** -- ihre
+rawdata- und results-Dateien wurden deshalb nachtraeglich mit
+`2672_ligentechhi_` praefigiert. Ab 2026-09-16 wird ein neuer Chip,
+**MAP2680**, vermessen; neue Scans dieses Chips sollten entsprechend mit
+`2680_ligentechhi_` beginnen, damit rawdata/results-Dateinamen allein
+erkennen lassen, von welchem physischen Chip sie stammen. Ausgenommen von
+der 2672-Umbenennung: `raw_data/hhi_ligentec/` (gemeinsame GDS-Designdatei,
+nicht chipspezifisch) und die `..._2m07cmfiber...`-Scans (laut Tabelle
+unten explizit **kein Chip** angeschlossen).
+
+**MAP2680 traegt elektrische Kontakte (Bondpads/Leiterbahnen), MAP2672
+nicht.** Auch unangeschlossen koennen sie die Reflektogramm-Struktur nahe
+der Facette beeinflussen (zusaetzliche Streuzentren/Reflexe durch
+Metallisierung). Erster Hinweis 2026-09-16: Faser 1 auf beiden Chips zeigt
+in der auf den eigenen Peak zentrierten Ansicht rechts vom Peak aehnliche,
+links vom Peak abweichende Struktur -- siehe `logs/2026-09-16.md`. Noch
+nicht verifiziert (z.B. gegen GDS-Kontaktlayout oder einen Kontrollscan);
+offene Hypothese, beim Interpretieren chipuebergreifender Strukturvergleiche
+mitdenken.
+
+Alle Scans: neuer PM-Aufbau, freilaufend, 4 Kanaele (Ch2/Ch4 = aux,
+Ch1/Ch3 = Messung), **1520.00-1570.00 nm, 988,536 Punkte**, tau_aux
+~20.633 ns (aux dL 4.21 m). Aufloesung 16.6 um faseraequivalent,
+Nyquistbereich 8.0 m. Kanalnummer = 96 - Fasernummer.
+
+Gemeinsamer interner Anker fuer alle diese Scans: **529.43 mm**; auf ihn
+werden die Pegel normiert, weil die alten Anker (574/587 mm) nach dem
+PM-Umbau weg sind.
+
+| File | Datum | Faser -> Kanal | Was dahinter liegt | Facette A |
+|---|---|---|---|---|
+| `2672_ligentechhi_2026-09-14-16-19_ligentecnofiber.json` | 2026-09-14 | — | **Kontrolle**, nichts angeschlossen | — |
+| `2672_ligentechhi_2026-09-14-16-02_Ligentecfiber1.json` | 2026-09-14 | 1 -> 95 | Loopback 199.494 um zu Kanal 94 | 1582.818 mm |
+| `2672_ligentechhi_2026-09-14-16-36_Ligentecfiber44.json` | 2026-09-14 | 44 -> 52 | Schaltung, 1x2-MMI nach 8912 um | 1580.416 mm |
+| `2672_ligentechhi_2026-09-14-16-41_Ligentecfiber45.json` | 2026-09-14 | 45 -> 51 | Schaltung, wie Kanal 52 an comp265 | — |
+| `2672_ligentechhi_2026-09-14-16-50_Ligentecfiber45neu.json` | 2026-09-14 | 45 -> 51 | Wiederholung von 16:41 | — |
+| `2672_ligentechhi_2026-09-15-08-19_ligentecfiber45wavelenght1520to1570nm.json` | 2026-09-15 | 45 -> 51 | Wiederholung, Standardspanne | — |
+| `2672_ligentechhi_2026-09-15-08-19_ligentecfiber45wavelenght1505to1625nm.json` | 2026-09-15 | 45 -> 51 | **Ausnahme: 1505-1625 nm**, volle Spanne | — |
+| `2672_ligentechhi_2026-09-15-09-34_Ligentecfiber48.json` | 2026-09-15 | 48 -> 48 | Schaltung; der Kanal, der in **Transmission** Signal gibt (Laser 48 -> PM 49) | 1582.141 mm |
+| `2672_ligentechhi_2026-09-15-09-34_Ligentecfiber48fnotfullwavelenghtremeasure.json` | 2026-09-15 | 48 -> 48 | Wiederholung, Standardspanne 1520-1570 nm | Facette 1585.712 mm |
+| `2672_ligentechhi_2026-09-15-09-34_Ligentecfiber48fullwavelenght.json` | 2026-09-15 | 48 -> 48 | **Ausnahme: 1505-1625 nm**, volle Spanne | Facette 1585.669 mm |
+| `2672_ligentechhi_2026-09-15-09-34_Ligentecfiber48fullwavelenghtremeasure.json` | 2026-09-15 | 48 -> 48 | **defekt** -- JSON bricht bei Zeichen 356 457 004 mitten in der Zahlenliste ab (Aufnahme unterbrochen) | -- |
+| `2672_ligentechhi_2026-09-15-09-34_Ligentecfiber48fullwavelenght_ipa.json` | 2026-09-15 | 48 -> 48 | volle Spanne, **mit IPA** (Bedeutung noch nicht dokumentiert -- vermutlich Indexanpassung an der Facette) | Facette 1585.670 mm |
+| `2026-09-15-08-19_ligentec2m07cmfiberwavelenght1520to1570nm.json` | 2026-09-15 | — | **kein Chip**, nur eine 2.07-m-Faser am Port | Faserende 2642.975 mm |
+| `2026-09-15-15-14meisusmfiberarrzchannel4.json` | 2026-09-15 | Meisu-Array, Kanal 4 | **anderes Faserarray**, kein Ligentec-Chip | Arrayfacette 1632.68 mm |
+| `2026-09-15-15-14meisusmfiberarrzchannel4remeasure.json` | 2026-09-15 | Meisu-Array, Kanal 4 | Wiederholung von Kanal 4, neu gesteckt | Arrayfacette 1632.52 mm |
+| `2026-09-15-15-14meisusmfiberarrzchannel8.json` | 2026-09-15 | Meisu-Array, Kanal 8 | dito | Arrayfacette 1633.31 mm |
+| `2026-09-15-15-14meisusmfiberarrzchannel9.json` | 2026-09-15 | Meisu-Array, Kanal 9 | dito | Arrayfacette 1633.42 mm |
+| `2026-09-15-15-14meisusmfiberarrzchannel12.json` | 2026-09-15 | Meisu-Array, Kanal 12 | dito | Arrayfacette 1632.44 mm |
+| `2026-09-15-15-14meisusmfiberarrzchannel12remeasure.json` | 2026-09-15 | Meisu-Array, Kanal 12 | Wiederholung von Kanal 12 | Arrayfacette 1632.56 mm |
+| `2026-09-15-15-14phixsmfiberarrzchannel1.json` | 2026-09-15 | PHIX-Array, Kanal 1 | **drittes Faserarray**, kein Ligentec-Chip | Arrayfacette 1624.55 mm |
+| `2026-09-15-15-14phixsmfiberarrzchannel8.json` | 2026-09-15 | PHIX-Array, Kanal 8 | dito | Arrayfacette 1626.19 mm |
+| `2026-09-16-10-36_ligentec2680_fiber1.json` | 2026-09-16 | **MAP2680**, 1 -> 95 | erster Scan neuer Chip, Standardspanne | Facette 1581.697 mm |
+| `2026-09-16-10-36_ligentec2680_fiber1full.json` | 2026-09-16 | **MAP2680**, 1 -> 95 | volle Spanne 1505-1625 nm | Facette 1581.696 mm |
+| `2680_ligentechhi_20260916-105948_fiber44_1520-1570nm.json` | 2026-09-16 | **MAP2680**, 44 -> 52 | Standardspanne | Facette 1579.112 mm |
+| `2680_ligentechhi_20260916-110010_fiber44_1505-1625nm.json` | 2026-09-16 | **MAP2680**, 44 -> 52 | volle Spanne | Facette 1579.129 mm |
+| `2680_ligentechhi_20260916-110152_fiber48_1520-1570nm.json` | 2026-09-16 | **MAP2680**, 48 -> 48 | Standardspanne | Facette 1579.172 mm |
+| `2680_ligentechhi_20260916-110214_fiber48_1505-1625nm.json` | 2026-09-16 | **MAP2680**, 48 -> 48 | volle Spanne | Facette 1579.127 mm |
+
+`.npz` vorhanden bisher nur fuer `2672_ligentechhi_2026-09-15-09-34_Ligentecfiber48`; die
+2026-09-14er Ligentec-Scans und die acht Array-Scans (Meisu 4/8/9/12 plus
+Wdh. von 4 und 12, PHIX 1/8) sind noch nicht konvertiert und existieren
+nur lokal als `.json`.
+
+Befund ueber alle Kanaele: ausser der Facettenreflexion selbst kommt
+**nichts aus dem Chip zurueck** -- siehe `logs/2026-09-14.md` und
+`logs/2026-09-15.md`. Pruefwerkzeuge:
+`tools/check_ligentec_channel.py` (Vorhersagefenster + zwei Kontrollen)
+und `tools/compare_ligentec_channels.py` (Zentrierung auf Facette A +
+Nullverteilung).
