@@ -1,0 +1,4 @@
+channel,cell,s_from_facet_um,s_to_um,n_interfaces,dz_from_mm,dz_to_mm
+b9,SSC end,1199.4,1199.4,1,2.8416,2.8416
+b9,4x WGMETx twin,1730.2,1818.4,4,4.0991,4.308
+b9,3x WGMETx twin,2578.4,2637.2,3,6.1086,6.2479
