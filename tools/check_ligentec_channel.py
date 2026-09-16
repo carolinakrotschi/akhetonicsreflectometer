@@ -14,8 +14,8 @@ einen Treffer -- derselbe Fehler, der beim HHI-Chip einmal ein
 
 Aufruf
     python tools/check_ligentec_channel.py --fiber 44 \
-        --scan raw_data/2026-09-14-16-36_Ligentecfiber44_reflectogram.csv \
-        --ref  raw_data/2026-09-14-16-02_Ligentecfiber1_reflectogram.csv
+        --scan raw_data/2672_ligentechhi_2026-09-14-16-36_Ligentecfiber44_reflectogram.csv \
+        --ref  raw_data/2672_ligentechhi_2026-09-14-16-02_Ligentecfiber1_reflectogram.csv
 """
 
 import argparse

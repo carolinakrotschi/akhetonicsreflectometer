@@ -165,6 +165,44 @@ that this is consistent with whatever the topology turns out to be.
   with a different wavelength step would settle this independently of
   either prior number.
 
+- **tau_aux changes between scans BY DESIGN (2026-09-15) -- do not read a
+  moving peak near the aux position as a reflector.** There are only three
+  ~2.07 m fibers on the bench; two sit in the aux and the third is the DUT,
+  so measuring a different fiber means swapping one out of the aux. tau_aux
+  therefore differs from scan to scan (20.6327 ns vs 20.5938 ns on
+  2026-09-15, 0.19%). Consequences:
+  - **Real reflectors do NOT move.** z is independent of tau_aux for them
+    (the aux fringe count and the calibration constant cancel). Checked:
+    the internal 529.43 mm anchor agreed to 26 um across the two scans.
+  - **The aux ghost DOES move**, because it sits at dL/2 by definition
+    (2106.794 -> 2102.807 mm, exactly the 0.19%). A peak that shifts
+    between two scans while the anchor holds still is the aux.
+  - **Use the swap as a free consistency check.** With the aux holding the
+    two fibers that are not under test, aux_a - aux_b = L(b) - L(a); the
+    total length and any fixed aux offset cancel. Left side comes from
+    fringe counting, right side from peak positions -- fully independent.
+    Measured 2026-09-15: +7.943 mm vs +7.960 mm, i.e. **17 um = one
+    resolution cell**. Run this whenever the aux has been re-plugged.
+  - **RESOLVED same day by measuring the third fiber: C = 23.7 +- 0.1 mm,
+    NOT zero.** The aux is not just the two fibers; it carries ~23.7 mm of
+    fixed extra path (coupler pigtails / connector bodies). Three
+    independent estimates (one per scan) agree to 0.19 mm. The earlier
+    C = 0 prediction of 2119.12 mm for the third fiber was wrong by 24 mm;
+    it is actually 2095.35 mm. Fiber lengths from the connector plane:
+    a 2085.93, b 2093.89, c 2095.35 mm (nominal 2070 each).
+  - **Every fiber end is a DOUBLET, and the stronger half is not always the
+    end.** Separations 5.26 / 3.18 / 3.76 mm, different per fiber, so not a
+    fixed instrument artifact. In fibers a and b the first peak is stronger,
+    in c the second -- picking the strongest peak gives the wrong length
+    there. The first peak is the end: that assignment makes the three C
+    estimates agree to 0.19 mm, the other leaves 3.58 mm. Unexplained;
+    settle it with index-matching gel on the end face (the end reflection
+    dies, whatever remains is the other feature).
+  - Scan-quality note: both paired tests involving scan c close to ~0.19 mm
+    instead of 0.017 mm, same sign and magnitude -- an error in tau_aux(c)
+    (45 ppm), matching that scan's aux contrast warning, not an error in
+    L(c). See `logs/2026-09-15.md`.
+
 **Data format** (what all scripts expect):
 
 ```json

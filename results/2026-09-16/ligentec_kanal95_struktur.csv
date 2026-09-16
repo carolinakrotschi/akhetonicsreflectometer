@@ -1,0 +1,5 @@
+channel,s_in_um,s_out_um,s_from_facet_um,dz_mm,cell,depth,box_w_um,box_h_um
+95,0.0,0.79,420.0,0.5436,AN350BB_EdgeCoupler_Lensed_C,3,30.0,430.0
+95,0.0,0.79,420.0,0.5436,EdgeCoupler_BB_$fe2d,2,30.0,430.01
+95,198.7,204.5,618.7,0.8008,EdgeCoupler_BB_$fe2d,2,30.0,430.01
+95,198.71,204.5,618.71,0.8008,AN350BB_EdgeCoupler_Lensed_C,3,30.0,430.0
