@@ -63,6 +63,7 @@ sys.path.insert(0, os.path.dirname(_HERE))
 sys.path.insert(0, _HERE)
 from process_reflectogram_aux import noise_floor              # noqa: E402
 from identify_chip_scan import SSC, N_FIBER, drop_satellites  # noqa: E402
+from hhi_channel_marks import short                            # noqa: E402
 
 
 def load(path):
@@ -85,10 +86,7 @@ def interfaces(netlist, channel, ng):
             cell, _, port = r["device_port"].partition(":")
             if abs(d - SSC) < 1.0 and "SSCLATE" in cell:
                 continue          # eigene Facette, s. hhi_channel_marks.py
-            name = cell.split("_$")[0].replace("HHI_", "")
-            if "SSCLATE" in cell:
-                name = "chip facet" if port == "o2" else "SSC end"
-            out.append(((SSC + d) * 1e-3 * ng / N_FIBER, name))
+            out.append(((SSC + d) * 1e-3 * ng / N_FIBER, short(cell, port)))
     return sorted(out)
 
 

@@ -55,6 +55,38 @@ def envelope(z, db, nout):
     return zz[np.arange(len(i)), i], dd[np.arange(len(i)), i]
 
 
+# Abkuerzung -> Klartext. Gezeigt wird im Plot nur, was dort auch vorkommt.
+GLOSS = [
+    ("chip facet", "chip facet = Chipfacette (InP/Luft), der einzige harte Reflektor"),
+    ("SSC end", "SSC = spot size converter; 'SSC end' = sein inneres Ende, Uebergang in den Waveguide"),
+    ("loop", "loop = Wellenleiterschleife zwischen den zwei SSC (reflektiert nicht, streut nur)"),
+    ("BJ", "BJ = butt joint, Stoss aktiv/passiv"),
+    ("SOA", "SOA = Halbleiterverstaerker"),
+    ("MMI2x2", "MMI2x2 = 2-auf-2-Koppler"),
+    ("MMI1x2", "MMI1x2 = 1-auf-2-Leistungsteiler"),
+    ("crossing", "crossing = Wellenleiterkreuzung"),
+    ("PMTO", "PMTO = thermo-optischer Phasenschieber"),
+    ("ISO", "ISO = elektrische Isolationssektion"),
+    ("WGMETx", "WGMETx = Metallbruecke UEBER dem Waveguide (optisch fast nichts)"),
+    ("EdgeCoupler", "EdgeCoupler = Kantenkoppler"),
+    ("pitch split", "pitch split = Faecher, der den Kanalabstand aufweitet"),
+    ("MZM", "MZM = Mach-Zehnder-Modulator"),
+    ("Heater", "Heater = Heizelektrode (optisch unsichtbar)"),
+]
+SYMS = [("+", "'+n' = n weitere Bauteilsorten in derselben Markengruppe"),
+        ("SL", "SL = Seitenlinie des Instruments"),
+        ("2x", "2x = Doppelbounce"),
+        ("?", "? = unerklaert")]
+
+
+def glossary(labels):
+    """Nur die Abkuerzungen erklaeren, die in diesem Plot auch auftauchen."""
+    txt = " ".join(labels)
+    out = [v for k, v in GLOSS if k in txt]
+    out += [v for k, v in SYMS if k in txt]
+    return out
+
+
 FIND_COLOR = {"Designgrenzflaeche": "#2ca02c", "Strecke gefuellt": "#2ca02c",
               "Seitenlinie": "0.45", "Doppelbounce": "0.45",
               "Fuss eines Stachels": "0.45", "unerklaert": "#ff7f0e"}
@@ -311,9 +343,7 @@ def main():
         for row, (lo_x, hi_x, ttl) in enumerate((
                 (-0.3, a.marks_zmax,
                  "predicted component positions (grey: n_g %.4f-%.4f%s)"
-                 % (a.ng[0], a.ng[1],
-                    ", light: +/- %.2f mm facet A anchor" % a.facet_unc
-                    if a.facet_unc else "")),
+                 % (a.ng[0], a.ng[1], "")),
                 (zoom_m[0], zoom_m[1], "component area, zoomed"))):
             axm = ax[base + row]
             for i, s_ in enumerate(scans):
@@ -324,9 +354,6 @@ def main():
                          label=s_["label"] if row == 0 else None)
                 axm.axhline(s_["floor"], color=c, ls=":", lw=0.8)
             for i, (name, lo_, hi_) in enumerate(bands):
-                if a.facet_unc:
-                    axm.axvspan(lo_ - a.facet_unc, hi_ + a.facet_unc,
-                                color="0.5", alpha=0.10, lw=0)
                 axm.axvspan(lo_, hi_, color="0.5", alpha=0.22, lw=0)
                 # Bei HHI ist n_g auf 0.01 % bekannt und eine Einzelmarke
                 # damit 4 um breit -- als Flaeche waere sie unsichtbar.
@@ -344,6 +371,19 @@ def main():
                              clip_on=True, color="0.2")
             if finds:
                 draw_findings(axm, scans, finds, lo_x, hi_x, row == 1)
+            if a.facet_unc:
+                # Als EIN Massstab, nicht als Hof um jede Marke: bei 24
+                # Marken mit je +-0.5 mm ist sonst die ganze Achse grau und
+                # es sieht so aus, als ueberlappten die Bauteile.
+                x0 = lo_x + 0.02 * (hi_x - lo_x)
+                axm.annotate("", xy=(x0, 0.93), xytext=(x0 + 2 * a.facet_unc, 0.93),
+                             xycoords=("data", "axes fraction"),
+                             arrowprops=dict(arrowstyle="<->", color="0.35",
+                                             lw=1.1))
+                axm.annotate("Anker Facette A +/- %.2f mm\n(alle Marken "
+                             "wandern gemeinsam)" % a.facet_unc,
+                             xy=(x0, 0.915), xycoords=("data", "axes fraction"),
+                             ha="left", va="top", fontsize=7, color="0.25")
             axm.set_xlim(lo_x, hi_x)
             axm.set_ylabel("amplitude [dB]")
             axm.text(0.5, 1.0, ttl, transform=axm.transAxes, ha="center",
@@ -370,6 +410,21 @@ def main():
                          transform=axm.transAxes, fontsize=9,
                          bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.5))
 
+    if marks:
+        used = [b[0] for b in bands]
+        if finds:
+            used += [r["candidate"] for rr in finds for r in rr]
+            used += [FIND_TAG.get(r["verdict"], "") for rr in finds for r in rr]
+        gl = glossary(used)
+        if gl:
+            txt = "   |   ".join(gl)
+            # Platz schaffen, bevor geschrieben wird -- sonst laeuft das
+            # Glossar in das Achsenlabel des unteren Panels.
+            nlin = 1 + len(txt) // 190
+            fig.subplots_adjust(bottom=fig.subplotpars.bottom
+                                + 0.016 * nlin + 0.022)
+            fig.text(0.008, 0.008, txt, fontsize=7, color="0.25",
+                     va="bottom", wrap=True)
     fig.suptitle("Facet comparison: " + "  vs  ".join(s["label"] for s in scans))
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     fig.savefig(a.out, dpi=150)
