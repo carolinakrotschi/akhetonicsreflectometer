@@ -13,3 +13,8 @@ simulation/**/*.npz
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Lokale API-Keys (Notion-Token, OpenRouter-Key). Nie committen --
+# GitHub Push Protection blockt den Push sonst ohnehin.
+Akhelab Screenshots/notion_config.json
+Akhelab Screenshots/vision_config.json
