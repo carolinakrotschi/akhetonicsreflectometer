@@ -21,6 +21,7 @@ Aufruf
 """
 
 import argparse
+import csv
 import os
 import sys
 
@@ -54,6 +55,27 @@ def envelope(z, db, nout):
     return zz[np.arange(len(i)), i], dd[np.arange(len(i)), i]
 
 
+FIND_COLOR = {"Designgrenzflaeche": "#2ca02c", "Strecke gefuellt": "#2ca02c",
+              "Seitenlinie": "0.45", "Doppelbounce": "0.45",
+              "Fuss eines Stachels": "0.45", "unerklaert": "#ff7f0e"}
+FIND_TAG = {"Seitenlinie": "SL", "Doppelbounce": "2x", "unerklaert": "?"}
+
+
+def load_findings(paths, nscan):
+    """Funde aus hhi_identify_peaks.py, eine Datei je Spur ('none' = keine)."""
+    if len(paths) != nscan:
+        raise SystemExit("--findings-csv %dx gegen --scan %dx"
+                         % (len(paths), nscan))
+    out = []
+    for p in paths:
+        if p.lower() == "none":
+            out.append([])
+            continue
+        with open(p) as fh:
+            out.append(list(csv.DictReader(fh)))
+    return out
+
+
 def peak_and_width(z, db, lo, hi):
     """Wie in compare_span.py: Hauptpeak im Fenster, -3 dB Breite per
     linearer Interpolation auf den Flanken."""
@@ -79,6 +101,38 @@ def peak_and_width(z, db, lo, hi):
 
     left, right = cross(i, -1), cross(i, +1)
     return float(zz[i]), float(top), float(right - left)
+
+
+def draw_findings(axm, scans, finds, lo_x, hi_x, label_them):
+    """Stacheln als Dreieck auf dem Peak, Buckel als Balken darunter.
+
+    Gezeichnet wird, was in den DATEN gefunden wurde -- im Gegensatz zu den
+    grauen Marken, die aus dem GDS kommen. Farbe = Deutung."""
+    y0, y1 = axm.get_ylim()
+    for i, (s_, rows) in enumerate(zip(scans, finds)):
+        lane = y0 + (0.05 + 0.045 * i) * (y1 - y0)
+        for r in rows:
+            v = r["verdict"]
+            c = FIND_COLOR.get(v, "0.45")
+            if r["kind"] == "Stachel":
+                zz = float(r["z_from_mm"])
+                if not lo_x <= zz <= hi_x:
+                    continue
+                yy = float(r["db_over_floor"]) + s_["floor"]
+                axm.plot([zz], [yy], marker="v", ms=5, color=c, mec="k",
+                         mew=0.3, zorder=6)
+                if label_them:
+                    axm.annotate(FIND_TAG.get(v, r["candidate"].split()[0]),
+                                 xy=(zz, yy), xytext=(0, 7),
+                                 textcoords="offset points", fontsize=6.5,
+                                 ha="center", color=c, zorder=6)
+            else:
+                z0, z1 = float(r["z_from_mm"]), float(r["z_to_mm"])
+                if z1 < lo_x or z0 > hi_x:
+                    continue
+                axm.plot([max(z0, lo_x), min(z1, hi_x)], [lane, lane],
+                         color=c, lw=3.2, solid_capstyle="butt", zorder=6)
+    axm.set_ylim(y0, y1)
 
 
 def main():
@@ -127,6 +181,17 @@ def main():
                          "letzten Marke auf -- bei HHI-Schaltungskanaelen "
                          "sind das 33 Marken ueber 32 mm, da zoomt nichts "
                          "mehr")
+    ap.add_argument("--only-marks", action="store_true",
+                    help="nur die zwei Bauteilpanels zeichnen. Uebersicht, "
+                         "Facettenfenster und zentriertes Panel sagen nichts "
+                         "ueber die Bauteile aus und kosten zwei Drittel der "
+                         "Bildhoehe")
+    ap.add_argument("--findings-csv", action="append", default=None,
+                    metavar="CSV",
+                    help="Ausgabe von hhi_identify_peaks.py -- einmal je "
+                         "--scan, in derselben Reihenfolge ('none' laesst "
+                         "eine Spur aus). Zeichnet die GEFUNDENEN Stacheln "
+                         "und Buckel mit ihrer Deutung ein")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
@@ -169,11 +234,22 @@ def main():
           % ((max(zps) - min(zps)) * 1e3, min(zps), max(zps)))
 
     marks = load_marks(a.marks_csv) if a.marks_csv else []
-    nrow = 3 + (2 if marks else 0)
-    fig, ax = plt.subplots(nrow, 1, figsize=(11, 3.45 * nrow),
-                           gridspec_kw=dict(hspace=0.36, top=0.965,
-                                            bottom=0.045, left=0.08,
+    if a.only_marks and not marks:
+        raise SystemExit("--only-marks ohne --marks-csv laesst nichts uebrig")
+    finds = load_findings(a.findings_csv, len(scans)) if a.findings_csv else None
+    base = 0 if a.only_marks else 3
+    nrow = base + (2 if marks else 0)
+    # Bei zwei Panels ist der 5-Panel-Rand viel zu knapp: 4.5 % von 6.9 Zoll
+    # sind 0.3 Zoll und das Achsenlabel faellt aus dem Bild.
+    geo = (dict(figsize=(13, 4.6 * nrow), top=0.935, bottom=0.085, hspace=0.24)
+           if a.only_marks else
+           dict(figsize=(11, 3.45 * nrow), top=0.965, bottom=0.045, hspace=0.36))
+    fig, ax = plt.subplots(nrow, 1, figsize=geo["figsize"], squeeze=False,
+                           gridspec_kw=dict(hspace=geo["hspace"],
+                                            top=geo["top"],
+                                            bottom=geo["bottom"], left=0.08,
                                             right=0.98))
+    ax = ax[:, 0]
 
     # dichteste Abtastung nach hinten, sonst deckt ihr Rauschen die anderen zu
     order = sorted(range(len(scans)), key=lambda i: -scans[i]["n"])
@@ -183,7 +259,8 @@ def main():
     titles = ("overview", "facet region (+/- %.2f mm around outermost peaks)" % a.zoom_pad,
               "aligned to own facet -- same structure repeating?")
 
-    for k, (axk, (lo, hi), ttl) in enumerate(zip(ax, spans, titles)):
+    for k, ((lo, hi), ttl) in enumerate(zip(spans, titles)) if not a.only_marks else []:
+        axk = ax[k]
         for rank, i in enumerate(order):
             s, c = scans[i], COLORS[i % len(COLORS)]
             x = s["z"] - s["zp"] if k == 2 else s["z"]
@@ -204,16 +281,17 @@ def main():
                  fontsize=10, bbox=dict(fc="white", ec="none", alpha=0.75, pad=1.5))
         axk.grid(alpha=0.3)
         axk.legend(loc="upper right", fontsize=8)
-    ax[0].text(0.01, 0.03,
+    if not a.only_marks:
+      ax[0].text(0.01, 0.03,
                "dotted: RMS noise floor  " + " / ".join("%.1f dB" % s["floor"] for s in scans),
                transform=ax[0].transAxes, fontsize=8)
-    ax[1].set_xlabel("distance [mm]")
-    ax[1].text(0.01, 0.07,
+      ax[1].set_xlabel("distance [mm]")
+      ax[1].text(0.01, 0.07,
                "-3 dB width  " + "  /  ".join("%.1f um (%s)" % (s["w"] * 1e3, s["label"]) for s in scans),
                transform=ax[1].transAxes, fontsize=8,
                bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.5))
-    ax[2].set_xlabel("distance from own facet peak [mm]")
-    ax[2].axvline(0.0, color="0.3", ls="--", lw=0.6)
+      ax[2].set_xlabel("distance from own facet peak [mm]")
+      ax[2].axvline(0.0, color="0.3", ls="--", lw=0.6)
 
     if marks:
         # Bauteile liegen ON-CHIP; die z-Achse ist faseraequivalent
@@ -237,7 +315,7 @@ def main():
                     ", light: +/- %.2f mm facet A anchor" % a.facet_unc
                     if a.facet_unc else "")),
                 (zoom_m[0], zoom_m[1], "component area, zoomed"))):
-            axm = ax[3 + row]
+            axm = ax[base + row]
             for i, s_ in enumerate(scans):
                 c = COLORS[i % len(COLORS)]
                 x = s_["z"] - s_["zp"]
@@ -255,14 +333,17 @@ def main():
                 if hi_ - lo_ < 0.01 * (hi_x - lo_x):
                     axm.axvline(0.5 * (lo_ + hi_), color="0.45", lw=0.8,
                                 alpha=0.55, zorder=1)
-                nrow_lab = 4 if len(bands) > 12 else 3
+                nrow_lab = 5 if len(bands) > 20 else (4 if len(bands) > 12 else 3)
                 axm.annotate(name,
                              xy=(0.5 * (lo_ + hi_),
                                  0.98 - (0.94 / nrow_lab) * (i % nrow_lab)),
                              xycoords=("data", "axes fraction"),
-                             fontsize=6 if len(bands) > 12 else 7,
+                             fontsize=5.5 if len(bands) > 20 else
+                             (6 if len(bands) > 12 else 7),
                              rotation=90, ha="center", va="top",
                              clip_on=True, color="0.2")
+            if finds:
+                draw_findings(axm, scans, finds, lo_x, hi_x, row == 1)
             axm.set_xlim(lo_x, hi_x)
             axm.set_ylabel("amplitude [dB]")
             axm.text(0.5, 1.0, ttl, transform=axm.transAxes, ha="center",
@@ -279,9 +360,13 @@ def main():
                     m = (x >= lo_x) & (x <= hi_x)
                     over.append("%s %+.1f dB"
                                 % (s_["label"], s_["db"][m].max() - s_["floor"]))
-                axm.text(0.01, 0.06,
-                         "peak in this window over own noise floor:   "
-                         + ",   ".join(over),
+                txt = ("peak in this window over own noise floor:   "
+                       + ",   ".join(over))
+                if finds:
+                    txt += ("\nfound in the DATA -- triangle = spike, bar = "
+                            "stretch;  green = matches design,  grey = "
+                            "sideband / double bounce,  orange = unexplained")
+                axm.text(0.01, 0.06, txt,
                          transform=axm.transAxes, fontsize=9,
                          bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.5))
 

@@ -1,0 +1,7 @@
+kind,z_from_mm,z_to_mm,width_mm,db_over_floor,db_over_background,verdict,candidate,delta_um,p_chance
+Stachel,2.5523,2.5523,0.0,30.4,11.0,unerklaert,naechste: SSC end +0.29 mm,,
+Stachel,6.4673,6.4673,0.0,29.4,11.2,unerklaert,naechste: WGMETxE1700single -1.01 mm,,
+Stachel,13.6171,13.6171,0.0,63.0,13.1,unerklaert,naechste: WGMETxE1700single -0.18 mm,,
+Buckel,2.1707,2.685,0.5143,30.4,-32.6,unerklaert,ausserhalb aller Designstrecken,,
+Buckel,12.3563,13.0696,0.7133,45.6,-17.4,Teil der Strecke,Strecke 11.85-13.37 mm (1.52 mm lang),-805.3,
+Buckel,13.3682,14.1313,0.7631,63.0,0.0,unerklaert,ausserhalb aller Designstrecken,,

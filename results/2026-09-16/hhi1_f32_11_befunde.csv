@@ -1,0 +1,16 @@
+kind,z_from_mm,z_to_mm,width_mm,db_over_floor,db_over_background,verdict,candidate,delta_um,p_chance
+Stachel,0.6469,0.6469,0.0,25.2,10.4,unerklaert,naechste: SSC end +2.19 mm,,
+Stachel,0.7465,0.7465,0.0,27.7,11.7,unerklaert,naechste: SSC end +2.10 mm,,
+Stachel,6.9673,6.9673,0.0,48.1,27.5,Designgrenzflaeche,chip facet,-34.3,0.0132
+Stachel,7.0171,7.0171,0.0,52.9,32.3,Designgrenzflaeche,chip facet,15.5,0.006
+Stachel,7.0835,7.0835,0.0,47.4,26.9,Designgrenzflaeche,chip facet,81.8,0.0317
+Stachel,7.1498,7.1498,0.0,39.9,18.8,unerklaert,naechste: chip facet -0.15 mm,,
+Stachel,7.1996,7.1996,0.0,33.7,11.7,unerklaert,naechste: chip facet -0.20 mm,,
+Stachel,8.1451,8.1451,0.0,32.6,11.3,unerklaert,naechste: chip facet -1.14 mm,,
+Stachel,14.5319,14.5319,0.0,14.0,10.8,Doppelbounce,2 x 7.200 mm,132.7,
+Stachel,14.6812,14.6812,0.0,14.3,13.5,unerklaert,naechste: chip facet -7.68 mm,,
+Buckel,0.5142,1.0451,0.5308,27.7,-29.3,unerklaert,ausserhalb aller Designstrecken,,
+Buckel,2.8367,4.3131,1.4764,38.0,-19.0,Strecke gefuellt,Strecke 2.84-4.16 mm (1.32 mm lang),157.9,0.097
+Buckel,6.7683,7.2991,0.5308,52.9,-4.1,Fuss eines Stachels,chip facet,,
+Buckel,7.5645,8.4935,0.929,36.9,-20.1,unerklaert,ausserhalb aller Designstrecken,,
+Buckel,15.1789,15.6931,0.5143,11.0,-46.0,unerklaert,ausserhalb aller Designstrecken,,
