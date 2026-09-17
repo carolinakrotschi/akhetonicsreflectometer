@@ -1,0 +1,3 @@
+run,voa_setting,facet_mm,noise_floor_dB_rel_own_max,snr_facet_dB,n_chip,max_chip_dB,median_chip_dB,n_mirror,max_mirror_dB,median_mirror_dB,excess_max_dB,excess_median_dB,n_control,peaks_per_mm_control,max_control_dB,max_gds_dB,max_gds_mirror_dB
+1,f1 = Kanal 95: 200 um (NULLKONTROLLE),1581.4749,-79.46,79.46,114,38.60,8.56,128,36.98,9.61,1.62,-1.05,451,2.8188,17.19,27.04,26.54
+2,f48 = Kanal 48: 7.1 mm,1579.3680,-78.20,78.20,118,42.87,15.56,124,35.13,8.19,7.74,7.38,366,2.2875,15.93,32.20,26.15

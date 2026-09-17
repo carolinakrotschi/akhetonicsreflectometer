@@ -1,0 +1,16 @@
+label,bauteil,lo_mm,hi_mm,excess_dB,hits,n_ctrl,frac_percent
+vorher 10 dB, VOA 6 (L7) -- gleicher Facettenpegel,pitch split,7.9017,8.7796,14.90,11,41,26.8
+vorher 10 dB, VOA max (L10),pitch split,7.9017,8.7796,13.79,13,41,31.7
+nachher 20 dB (10:33),pitch split,7.9017,8.7796,14.61,12,41,29.3
+vorher 10 dB, VOA 6 (L7) -- gleicher Facettenpegel,MZM 1X2,7.9017,8.7796,14.90,11,41,26.8
+vorher 10 dB, VOA max (L10),MZM 1X2,7.9017,8.7796,13.79,13,41,31.7
+nachher 20 dB (10:33),MZM 1X2,7.9017,8.7796,14.61,12,41,29.3
+vorher 10 dB, VOA 6 (L7) -- gleicher Facettenpegel,MMI1x2,7.9262,8.8069,14.90,11,41,26.8
+vorher 10 dB, VOA max (L10),MMI1x2,7.9262,8.8069,13.79,13,41,31.7
+nachher 20 dB (10:33),MMI1x2,7.9262,8.8069,14.61,13,41,31.7
+vorher 10 dB, VOA 6 (L7) -- gleicher Facettenpegel,Straight Heater,8.1595,9.0661,13.32,13,40,32.5
+vorher 10 dB, VOA max (L10),Straight Heater,8.1595,9.0661,13.79,14,40,35.0
+nachher 20 dB (10:33),Straight Heater,8.1595,9.0661,13.56,14,40,35.0
+vorher 10 dB, VOA 6 (L7) -- gleicher Facettenpegel,MMI 2x2,8.6855,9.6505,10.11,14,38,36.8
+vorher 10 dB, VOA max (L10),MMI 2x2,8.6855,9.6505,9.42,17,38,44.7
+nachher 20 dB (10:33),MMI 2x2,8.6855,9.6505,9.25,17,38,44.7

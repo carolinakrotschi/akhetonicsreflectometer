@@ -1,0 +1,4 @@
+label,tau_aux_ns,fringes,aux_contrast_min,P_meas_mW,P_aux_mW,facet_mm,facet_dB,floor_ctrl_dB,floor_full_dB,dynamic_range_dB
+vorher 10 dB, VOA 6 (L7) -- gleicher Facettenpegel,20.6111,297117,0.2018,0.042400,0.704416,1579.5934,-2.24,-59.63,-81.94,57.39
+vorher 10 dB, VOA max (L10),20.6088,297120,0.1863,0.047487,0.704398,1579.3852,0.00,-58.08,-80.99,58.08
+nachher 20 dB (10:33),20.6091,297119,0.1780,0.024633,0.051780,1579.3680,-2.40,-63.01,-85.12,60.61

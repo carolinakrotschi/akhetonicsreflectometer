@@ -11,6 +11,14 @@ Peaks gemeinsam zu zeigen (nicht auf einen einzigen engen Bereich gezoomt).
 Jede Kurve bekommt einen eigenen -3-dB-Peak-Eintrag in der Textausgabe und
 eine eigene senkrechte Markierung im Plot.
 
+Mit `--marks-csv` kommen zwei Bauteilpanels dazu. `--wide-panels K` setzt
+K Kontextpanels davor: das erste zeigt die GANZE Achse, die weiteren zoomen
+geometrisch bis zum Bauteilbereich hinein, so dass man von 3000 mm in vier
+Schritten in den Zoom kommt und sieht, wo der Chip auf der Achse steht.
+`--absolute-x` schreibt dabei die absolute Distanz vom Instrument auf die
+Achse statt "hinter Facette A" -- die Bauteilmarken wandern dann um den
+Anker mit.
+
 Aufruf
     python tools/plot_chip_comparison.py \
         --scan "MAP2672 fiber1" raw_data/2672_ligentechhi_..._reflectogram.csv \
@@ -18,6 +26,10 @@ Aufruf
         --scan "MAP2680 fiber1 (voller Span)" raw_data/..._fiber1full_reflectogram.csv \
         --peak-window 1575 1590 \
         --out results/2026-09-16/fiber1_chip_vergleich.png
+
+Fuer die HHI-1-Befunde-Plots ruft `tools/make_hhi_befunde_plots.py` dieses
+Skript mit den Facette-A-Ankern aller Kanaele auf -- dort nachsehen statt
+die Kommandozeile von Hand zusammenzusetzen.
 """
 
 import argparse
@@ -135,19 +147,26 @@ def peak_and_width(z, db, lo, hi):
     return float(zz[i]), float(top), float(right - left)
 
 
-def draw_findings(axm, scans, finds, lo_x, hi_x, label_them):
+def draw_findings(axm, scans, finds, lo_x, hi_x, label_them, foff=None):
     """Stacheln als Dreieck auf dem Peak, Buckel als Balken darunter.
 
     Gezeichnet wird, was in den DATEN gefunden wurde -- im Gegensatz zu den
-    grauen Marken, die aus dem GDS kommen. Farbe = Deutung."""
+    grauen Marken, die aus dem GDS kommen. Farbe = Deutung.
+
+    `foff` verschiebt die Funde auf die Plotachse: die CSV von
+    `hhi_identify_peaks.py` zaehlt ab Facette A, die Achse kann absolut
+    sein. Ein Fund gehoert zu SEINEM Scan, also bekommt jede Spur ihren
+    eigenen Offset (bei zwei Messtagen liegt Facette A nicht gleich)."""
     y0, y1 = axm.get_ylim()
+    if foff is None:
+        foff = [0.0] * len(scans)
     for i, (s_, rows) in enumerate(zip(scans, finds)):
         lane = y0 + (0.05 + 0.045 * i) * (y1 - y0)
         for r in rows:
             v = r["verdict"]
             c = FIND_COLOR.get(v, "0.45")
             if r["kind"] == "Stachel":
-                zz = float(r["z_from_mm"])
+                zz = float(r["z_from_mm"]) + foff[i]
                 if not lo_x <= zz <= hi_x:
                     continue
                 yy = float(r["db_over_floor"]) + s_["floor"]
@@ -159,7 +178,8 @@ def draw_findings(axm, scans, finds, lo_x, hi_x, label_them):
                                  textcoords="offset points", fontsize=6.5,
                                  ha="center", color=c, zorder=6)
             else:
-                z0, z1 = float(r["z_from_mm"]), float(r["z_to_mm"])
+                z0 = float(r["z_from_mm"]) + foff[i]
+                z1 = float(r["z_to_mm"]) + foff[i]
                 if z1 < lo_x or z0 > hi_x:
                     continue
                 axm.plot([max(z0, lo_x), min(z1, hi_x)], [lane, lane],
@@ -218,6 +238,21 @@ def main():
                          "Facettenfenster und zentriertes Panel sagen nichts "
                          "ueber die Bauteile aus und kosten zwei Drittel der "
                          "Bildhoehe")
+    ap.add_argument("--absolute-x", action="store_true",
+                    help="x-Achse als ABSOLUTE Distanz vom Instrument statt "
+                         "'hinter Facette A'. Die Marken werden dann um "
+                         "Facette A der ERSTEN Spur verschoben, die Funde je "
+                         "Spur um deren eigene Facette. Achtung: absolute "
+                         "Lagen sind zwischen Messsitzungen nur auf ~1 mm "
+                         "vergleichbar (die interne Referenz wandert), "
+                         "Abstaende dagegen auf unter 1 um")
+    ap.add_argument("--wide-panels", type=int, default=0, metavar="K",
+                    help="K zusaetzliche Kontextpanels VOR den zwei "
+                         "Bauteilpanels: das erste zeigt die ganze Achse, "
+                         "die weiteren zoomen geometrisch bis zum "
+                         "Bauteilbereich hinein. K=2 gibt vier Panels von "
+                         "der ganzen Achse bis in den Zoom (default 0 = "
+                         "Verhalten wie bisher)")
     ap.add_argument("--findings-csv", action="append", default=None,
                     metavar="CSV",
                     help="Ausgabe von hhi_identify_peaks.py -- einmal je "
@@ -269,13 +304,35 @@ def main():
     if a.only_marks and not marks:
         raise SystemExit("--only-marks ohne --marks-csv laesst nichts uebrig")
     finds = load_findings(a.findings_csv, len(scans)) if a.findings_csv else None
+    # Das Glossar muss VOR der Figur stehen: es braucht Platz am unteren
+    # Rand, und `fig.subplots_adjust` ist wirkungslos, sobald top/bottom im
+    # gridspec stehen (matplotlib nimmt dann die dort gespeicherten Werte).
+    # Vorher wurde der Platz deshalb nur scheinbar reserviert.
+    gl = []
+    if marks:
+        used = [short_name(nm) for nm, _, _ in marks]
+        if finds:
+            used += [r["candidate"] for rr in finds for r in rr]
+            used += [FIND_TAG.get(r["verdict"], "") for rr in finds for r in rr]
+        gl = glossary(used)
+    gl_txt = "   |   ".join(gl)
+    gl_lin = (1 + len(gl_txt) // 190) if gl_txt else 0
+
+    nwide = max(a.wide_panels, 0) if marks else 0
     base = 0 if a.only_marks else 3
-    nrow = base + (2 if marks else 0)
+    nrow = base + (2 + nwide if marks else 0)
     # Bei zwei Panels ist der 5-Panel-Rand viel zu knapp: 4.5 % von 6.9 Zoll
-    # sind 0.3 Zoll und das Achsenlabel faellt aus dem Bild.
-    geo = (dict(figsize=(13, 4.6 * nrow), top=0.935, bottom=0.085, hspace=0.24)
-           if a.only_marks else
-           dict(figsize=(11, 3.45 * nrow), top=0.965, bottom=0.045, hspace=0.36))
+    # sind 0.3 Zoll und das Achsenlabel faellt aus dem Bild. Deshalb den
+    # Rand in ZOLL festlegen und erst dann in Bruchteile umrechnen -- sonst
+    # wird bei vier Panels aus demselben Bruchteil der doppelte Rand.
+    bot_in = 0.50 + 0.15 * gl_lin      # Achsenlabel + Glossarzeilen
+    if a.only_marks:
+        h = 4.6 * nrow
+        geo = dict(figsize=(13, h), top=1 - 0.6 / h, bottom=bot_in / h,
+                   hspace=0.30)
+    else:
+        h = 3.45 * nrow
+        geo = dict(figsize=(11, h), top=0.965, bottom=bot_in / h, hspace=0.36)
     fig, ax = plt.subplots(nrow, 1, figsize=geo["figsize"], squeeze=False,
                            gridspec_kw=dict(hspace=geo["hspace"],
                                             top=geo["top"],
@@ -329,49 +386,117 @@ def main():
         # Bauteile liegen ON-CHIP; die z-Achse ist faseraequivalent
         # (n_g = 1.468). Deshalb die on-chip-Weglaenge mit n_g_chip/n_Faser
         # skalieren -- das graue Band ist die Unsicherheit in n_g_chip.
-        bands = [(short_name(nm), s0 * 1e-3 * a.ng[0] / N_FIBER,
-                  s1 * 1e-3 * a.ng[1] / N_FIBER) for nm, s0, s1 in marks]
+        #
+        # `anchor` legt fest, was 0 auf der Achse heisst: bei --absolute-x
+        # die Facette A der ersten Spur (auf der Achse steht dann die
+        # absolute Distanz vom Instrument), sonst 0 (Distanz hinter der
+        # Facette). Alles weiter unten rechnet in PLOTKOORDINATEN.
+        anchor = scans[0]["zp"] if a.absolute_x else 0.0
+        xoff = [(0.0 if a.absolute_x else -s_["zp"]) for s_ in scans]
+        foff = [(s_["zp"] if a.absolute_x else 0.0) for s_ in scans]
+        bands = [(short_name(nm), anchor + s0 * 1e-3 * a.ng[0] / N_FIBER,
+                  anchor + s1 * 1e-3 * a.ng[1] / N_FIBER)
+                 for nm, s0, s1 in marks]
         # Der Edge Coupler klebt an der Facette; wuerde er den Zoom
         # aufspannen, waere der Rest wieder zusammengequetscht.
         if a.marks_zoom:
-            zoom_m = tuple(a.marks_zoom)
+            zoom_m = (anchor + a.marks_zoom[0], anchor + a.marks_zoom[1])
         else:
-            far = [b for b in bands if b[2] > 1.0] or bands
+            far = [b for b in bands if b[2] - anchor > 1.0] or bands
             pad = 0.15 * (max(b[2] for b in far) - min(b[1] for b in far) or 1.0)
             zoom_m = (min(b[1] for b in far) - pad, max(b[2] for b in far) + pad)
+            # Ein Kanal mit einer EINZIGEN Marke (b25 ist ein Stumpf) hat
+            # keine Ausdehnung: "erste bis letzte Marke" waere dort 2 um
+            # breit und das Panel bliebe leer. Dann stattdessen ein Drittel
+            # des Bauteilbereichs um die Marke herum.
+            span_det = a.marks_zmax + 0.3
+            if zoom_m[1] - zoom_m[0] < 0.2 * span_det:
+                w = span_det / 3.0
+                c0 = 0.5 * (zoom_m[0] + zoom_m[1])
+                lo_z = min(max(c0 - 0.5 * w, anchor - 0.3),
+                           anchor + a.marks_zmax - w)
+                zoom_m = (lo_z, lo_z + w)
 
-        for row, (lo_x, hi_x, ttl) in enumerate((
-                (-0.3, a.marks_zmax,
-                 "predicted component positions (grey: n_g %.4f-%.4f%s)"
-                 % (a.ng[0], a.ng[1], "")),
-                (zoom_m[0], zoom_m[1], "component area, zoomed"))):
+        # Die zwei Bauteilpanels wie bisher ...
+        det = [(anchor - 0.3, anchor + a.marks_zmax,
+                "predicted component positions (grey: n_g %.4f-%.4f%s)"
+                % (a.ng[0], a.ng[1], "")),
+               (zoom_m[0], zoom_m[1], "component area, zoomed")]
+        # ... und davor K Kontextpanels: das erste die ganze Achse, die
+        # weiteren geometrisch bis zum Bauteilbereich hinein. Geometrisch,
+        # nicht linear: von 3000 mm auf 36 mm ist der halbe Weg 330 mm; der
+        # linear gemittelte waere 1518 mm und zeigte zweimal fast dasselbe.
+        lo_full = min(float(s_["z"][0]) + o for s_, o in zip(scans, xoff))
+        hi_full = max(float(s_["z"][-1]) + o for s_, o in zip(scans, xoff))
+        s_det = det[0][1] - det[0][0]
+        s_full = max(hi_full - lo_full, s_det)
+        cen = 0.5 * (det[0][0] + det[0][1])
+        wide = []
+        for k in range(nwide):
+            if k == 0:
+                wide.append((lo_full, hi_full,
+                             "whole axis %.0f-%.0f mm (envelope over all bins)"
+                             % (lo_full, hi_full)))
+                continue
+            w = s_full * (s_det / s_full) ** (k / float(nwide))
+            lo_w = min(max(cen - 0.5 * w, lo_full), hi_full - w)
+            wide.append((lo_w, lo_w + w,
+                         "zoomed in: %.0f mm window around the chip" % w))
+        panels = wide + det
+        print("\nPanels (%s):   %s"
+              % ("absolute" if a.absolute_x else "hinter Facette A",
+                 "  ->  ".join("%.2f-%.2f mm (%.1f breit)"
+                               % (p0, p1, p1 - p0) for p0, p1, _ in panels)))
+
+        for row, (lo_x, hi_x, ttl) in enumerate(panels):
             axm = ax[base + row]
+            first, last = row == 0, row == len(panels) - 1
+            # Auf einem 3000-mm-Panel sind 33 Marken ein einziger Strich und
+            # die Funde liegen alle uebereinander -- dort nur der Bereich als
+            # Flaeche; Einzelheiten erst, wo sie lesbar sind.
+            detail = (hi_x - lo_x) <= 3.0 * s_det
             for i, s_ in enumerate(scans):
                 c = COLORS[i % len(COLORS)]
-                x = s_["z"] - s_["zp"]
+                x = s_["z"] + xoff[i]
                 m = (x >= lo_x) & (x <= hi_x)
-                axm.plot(x[m], s_["db"][m], lw=0.8, color=c, alpha=0.9,
-                         label=s_["label"] if row == 0 else None)
+                zz, dd = x[m], s_["db"][m]
+                if not detail and len(zz) > 6000:
+                    zz, dd = envelope(zz, dd, 3000)
+                axm.plot(zz, dd, lw=0.8, color=c, alpha=0.9,
+                         label=s_["label"] if first else None)
                 axm.axhline(s_["floor"], color=c, ls=":", lw=0.8)
-            for i, (name, lo_, hi_) in enumerate(bands):
-                axm.axvspan(lo_, hi_, color="0.5", alpha=0.22, lw=0)
-                # Bei HHI ist n_g auf 0.01 % bekannt und eine Einzelmarke
-                # damit 4 um breit -- als Flaeche waere sie unsichtbar.
-                if hi_ - lo_ < 0.01 * (hi_x - lo_x):
-                    axm.axvline(0.5 * (lo_ + hi_), color="0.45", lw=0.8,
-                                alpha=0.55, zorder=1)
-                nrow_lab = 5 if len(bands) > 20 else (4 if len(bands) > 12 else 3)
-                axm.annotate(name,
-                             xy=(0.5 * (lo_ + hi_),
-                                 0.98 - (0.94 / nrow_lab) * (i % nrow_lab)),
-                             xycoords=("data", "axes fraction"),
-                             fontsize=5.5 if len(bands) > 20 else
-                             (6 if len(bands) > 12 else 7),
-                             rotation=90, ha="center", va="top",
-                             clip_on=True, color="0.2")
-            if finds:
-                draw_findings(axm, scans, finds, lo_x, hi_x, row == 1)
-            if a.facet_unc:
+            if detail:
+                for i, (name, lo_, hi_) in enumerate(bands):
+                    axm.axvspan(lo_, hi_, color="0.5", alpha=0.22, lw=0)
+                    # Bei HHI ist n_g auf 0.01 % bekannt und eine Einzelmarke
+                    # damit 4 um breit -- als Flaeche waere sie unsichtbar.
+                    if hi_ - lo_ < 0.01 * (hi_x - lo_x):
+                        axm.axvline(0.5 * (lo_ + hi_), color="0.45", lw=0.8,
+                                    alpha=0.55, zorder=1)
+                    nrow_lab = 5 if len(bands) > 20 else (4 if len(bands) > 12 else 3)
+                    axm.annotate(name,
+                                 xy=(0.5 * (lo_ + hi_),
+                                     0.98 - (0.94 / nrow_lab) * (i % nrow_lab)),
+                                 xycoords=("data", "axes fraction"),
+                                 fontsize=5.5 if len(bands) > 20 else
+                                 (6 if len(bands) > 12 else 7),
+                                 rotation=90, ha="center", va="top",
+                                 clip_on=True, color="0.2")
+            else:
+                axm.axvspan(det[0][0], det[0][1], color="0.5", alpha=0.18,
+                            lw=0, zorder=1)
+                axm.axvline(anchor, color="0.35", lw=0.9, alpha=0.8, zorder=1)
+                axm.text(0.012, 0.055,
+                         "grey: chip / component region %.1f-%.1f mm "
+                         "(%.1f mm wide, shown in the panels below)"
+                         % (det[0][0], det[0][1], det[0][1] - det[0][0]),
+                         transform=axm.transAxes, ha="left", va="bottom",
+                         fontsize=8, color="0.25",
+                         bbox=dict(fc="white", ec="none", alpha=0.8,
+                                   pad=1.5))
+            if finds and detail:
+                draw_findings(axm, scans, finds, lo_x, hi_x, last, foff)
+            if a.facet_unc and detail:
                 # Als EIN Massstab, nicht als Hof um jede Marke: bei 24
                 # Marken mit je +-0.5 mm ist sonst die ganze Achse grau und
                 # es sieht so aus, als ueberlappten die Bauteile.
@@ -386,17 +511,32 @@ def main():
                              ha="left", va="top", fontsize=7, color="0.25")
             axm.set_xlim(lo_x, hi_x)
             axm.set_ylabel("amplitude [dB]")
+            axm.set_xlabel("absolute distance from instrument [mm]"
+                           if a.absolute_x else "distance behind facet A [mm]")
             axm.text(0.5, 1.0, ttl, transform=axm.transAxes, ha="center",
                      va="top", fontsize=10,
                      bbox=dict(fc="white", ec="none", alpha=0.75, pad=1.5))
             axm.grid(alpha=0.3)
-            if row == 0:
+            if first:
                 axm.legend(loc="upper right", fontsize=8)
-            else:
-                axm.set_xlabel("distance behind facet A [mm]")
+                if a.absolute_x:
+                    # Zwei Zeilen, nicht eine: einzeilig laeuft der Satz mit
+                    # einem langen Spurnamen rechts aus dem Bild.
+                    note = ("absolute axis: DISTANCES are good to <1 um, but "
+                            "absolute positions shift by ~1 mm between "
+                            "measurement sessions")
+                    note += "\n(the internal reference drifts)."
+                    if len(scans) > 1:
+                        note += ("  The grey marks are anchored to facet A of "
+                                 "%s." % scans[0]["label"])
+                    axm.text(0.012, 0.115, note, transform=axm.transAxes,
+                             fontsize=8, ha="left", va="bottom",
+                             bbox=dict(fc="white", ec="none", alpha=0.8,
+                                       pad=1.5))
+            if last:
                 over = []
-                for s_ in scans:
-                    x = s_["z"] - s_["zp"]
+                for i, s_ in enumerate(scans):
+                    x = s_["z"] + xoff[i]
                     m = (x >= lo_x) & (x <= hi_x)
                     over.append("%s %+.1f dB"
                                 % (s_["label"], s_["db"][m].max() - s_["floor"]))
@@ -410,21 +550,9 @@ def main():
                          transform=axm.transAxes, fontsize=9,
                          bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.5))
 
-    if marks:
-        used = [b[0] for b in bands]
-        if finds:
-            used += [r["candidate"] for rr in finds for r in rr]
-            used += [FIND_TAG.get(r["verdict"], "") for rr in finds for r in rr]
-        gl = glossary(used)
-        if gl:
-            txt = "   |   ".join(gl)
-            # Platz schaffen, bevor geschrieben wird -- sonst laeuft das
-            # Glossar in das Achsenlabel des unteren Panels.
-            nlin = 1 + len(txt) // 190
-            fig.subplots_adjust(bottom=fig.subplotpars.bottom
-                                + 0.016 * nlin + 0.022)
-            fig.text(0.008, 0.008, txt, fontsize=7, color="0.25",
-                     va="bottom", wrap=True)
+    if gl_txt:
+        fig.text(0.008, 0.008, gl_txt, fontsize=7, color="0.25",
+                 va="bottom", wrap=True)
     fig.suptitle("Facet comparison: " + "  vs  ".join(s["label"] for s in scans))
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     fig.savefig(a.out, dpi=150)

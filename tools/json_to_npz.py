@@ -69,6 +69,14 @@ def convert(src, out=None, verify=False):
     for k, v in hdr.items():
         if isinstance(v, str):
             meta["hdr_" + k] = np.array(v)
+    # Der ganze Header zusaetzlich als JSON-String unter "meta" -- so wie ihn
+    # der Lina-Rekorder in seinen .npz ablegt. Die hdr_*-Schluessel oben
+    # verlieren jede geschachtelte Angabe, und genau dort steht
+    # wavelength_axis_aux.tau_aux_implied_s, ohne das die aux-referenzierten
+    # Werkzeuge (process_reflectogram_aux, plot_voa_series) ein --tau-aux-ns
+    # von Hand brauchen.
+    if hdr:
+        meta["meta"] = np.array(json.dumps(hdr))
     meta["unit"] = np.array(unit)
     meta["n_points"] = np.array(n)
     meta["source_json"] = np.array(os.path.basename(src))
