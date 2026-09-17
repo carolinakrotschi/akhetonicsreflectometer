@@ -62,20 +62,20 @@ def compute(points, speed_nms=None, span_nm=None, step_us=STEP_US):
                 cells=z_max / dz, dnudt=dnudt, f_nyq=f_nyq)
 
 
-def aux_check(r, dl_m, z_mess_m):
+def aux_check(r, dl_m, z_mess_m, step_us=STEP_US):
     tau_aux = NG * dl_m / C
     z_aux = dl_m / 2
     f_aux = tau_aux * r["dnudt"]
-    pts_per_fringe = (1.0 / (STEP_US * 1e-6)) / f_aux
+    pts_per_fringe = (1.0 / (step_us * 1e-6)) / f_aux
     tau_mess = 2 * NG * z_mess_m / C
     return dict(tau_aux=tau_aux, z_aux=z_aux, f_aux=f_aux,
                 pts_per_fringe=pts_per_fringe, tau_mess=tau_mess,
                 dl_min=2 * z_mess_m, dl_max=2 * r["z_max"])
 
 
-def report(r, dl_m=None, z_mess_m=2.0):
+def report(r, dl_m=None, z_mess_m=2.0, step_us=STEP_US):
     print(f"Points/channel      {r['points']:,}")
-    print(f"Clock step          {STEP_US} us  ->  acquisition time {r['T']:.3f} s")
+    print(f"Clock step          {step_us} us  ->  acquisition time {r['T']:.3f} s")
     print(f"Sweep               {r['speed']:.1f} nm/s over {r['span']:.1f} nm")
     print(f"Point spacing       {r['dlam_pm']:.4f} pm  =  {r['dnu']/1e6:.2f} MHz")
     print()
@@ -88,7 +88,7 @@ def report(r, dl_m=None, z_mess_m=2.0):
           f"{2*NG*r['z_max']/C*r['dnudt']/1e3:.0f} kHz  (must equal Nyquist)")
 
     if dl_m is not None:
-        a = aux_check(r, dl_m, z_mess_m)
+        a = aux_check(r, dl_m, z_mess_m, step_us)
         print()
         print(f"--- Aux MZI with dL = {dl_m:.2f} m ---")
         print(f"tau_aux             {a['tau_aux']*1e9:.2f} ns")
@@ -159,7 +159,7 @@ def main():
     if a.speed is None and a.span is None:
         a.speed = 60.0
     r = compute(a.points, a.speed, a.span, a.step_us)
-    report(r, a.dl, a.z_mess)
+    report(r, a.dl, a.z_mess, a.step_us)
 
 
 if __name__ == "__main__":
