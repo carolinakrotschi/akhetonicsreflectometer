@@ -1,0 +1,4 @@
+run,voa_setting,facet_mm,noise_floor_dB_rel_own_max,snr_facet_dB,n_chip,max_chip_dB,median_chip_dB,n_mirror,max_mirror_dB,median_mirror_dB,excess_max_dB,excess_median_dB,n_control,peaks_per_mm_control,max_control_dB,max_gds_dB,max_gds_mirror_dB
+1,vorher 10 dB (L7; VOA 6),1579.5934,-74.54,74.54,121,43.72,15.11,126,34.99,8.31,8.73,6.80,299,1.8687,15.60,32.06,25.85
+2,vorher 10 dB (L10; VOA max),1579.3852,-76.19,76.19,125,42.58,16.09,129,44.22,11.03,-1.63,5.06,347,2.1688,15.44,31.90,26.60
+3,nachher 20 dB (10:33),1579.3680,-78.20,78.20,118,42.87,15.56,124,35.13,8.19,7.74,7.38,366,2.2875,15.93,32.20,26.15
