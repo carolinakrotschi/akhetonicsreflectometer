@@ -7,6 +7,13 @@ number, every dead end and every correction.
 Everything produced that day lives in this folder. The rest of the repository
 is unchanged, with two justified exceptions (§10).
 
+**Note on the data:** the raw captures and the figures made from them are
+**not kept in git** (~190 MB of measurement data, which does not belong in a
+code repository). They remain on the measurement PC under `data/`. Every
+number they produced is in this report, and the figures can be regenerated
+from the captures with the scripts in `scripts/`. The calibration itself
+(`calibrations/`) **is** kept, because the GUI and the scripts depend on it.
+
 ---
 
 ## Contents
@@ -472,7 +479,7 @@ This section is deliberately complete — rejected ideas are results.
 | 512-byte alignment causes the read stall | non-aligned byte count | **refuted**, fails identically; workaround removed |
 | Leftover Python processes blocked COM12 | processes still running while the port worked | **refuted**, the device had wedged |
 | Pick "best channel" by contrast | an unconnected channel wins | **wrong**, changed to peak power |
-| The first 10 nm are bad and must be excluded | fringe amplitude per 0.5 nm; crop scan 0/2/5/10/15/20 nm | **no effect** (below) — the option was removed again |
+| The first 10 nm are bad and must be excluded | fringe amplitude per 0.5 nm; crop scan 0/2/5/10/15/20 nm — **both on script captures only** | **wrong conclusion, see §9.2.** True for GUI captures, and the cause was fixable |
 | Degree 3 or 4 for λ(t) | residuals | **no gain** over degree 2 |
 
 ### 9.1 The crop scan in detail
@@ -496,6 +503,44 @@ That is not a length change but the peak's own structure (2–3 sub-lobes over
 uncertainty is ~±2 mm while the **repeatability** is ±0.03 mm. Irrelevant for
 comparisons, relevant for absolute values.
 
+### 9.2 Correction: the first 10 nm *were* bad — in GUI captures
+
+You asked whether the first 10 nm looked bad and whether I had excluded them.
+I checked, found nothing, and said so. That answer was wrong, because I only
+ever checked **script** captures, where the first 10 nm are clean. The
+difference only appeared when GUI and script captures taken one minute apart
+were compared block by block:
+
+| Block | GUI fringes | script fringes | ratio | GUI aux amplitude |
+|---|---|---|---|---|
+| 0–1 s | 8,224 | 13,450 | **0.61** | 0.134 |
+| 1–2 s | 10,234 | 13,339 | **0.77** | 0.153 |
+| 2–3 s | 13,412 | 13,237 | 1.01 | 0.187 |
+| 3 s onwards | … | … | 1.01–1.02 | 0.19–0.21 |
+
+In GUI captures the first **2 s = the first 10 nm** carry ~25 % less fringe
+amplitude and 23–39 % fewer fringes; from 2 s on the two paths agree to 1.5 %.
+
+**Cause:** the script parks the laser at the start wavelength and waits 5 s
+**before arming**; the GUI parked only after arming and did not wait. So the
+laser's start-of-sweep transient was being captured.
+
+**Consequence:** the corrupted first 2 s spoiled the aux phase, which cost 5 %
+of the total fringe count and therefore stretched the distance axis by 5 % —
+this is exactly what made the OFDR button report 2.846 m for a 3.026 m fibre
+(§11.1, now fixed).
+
+**Why my earlier control experiment missed it:** that test compared the
+*position* of a wavelength marker with and without parking, and position is
+genuinely unaffected (< 1 pm). Signal *quality* at the start of the sweep is
+not, and I had not measured it. Both statements in §1 and §3.4 about timing
+stand; the claim that parking "makes no difference" was too broad.
+
+**It also retroactively vindicates `Settle margin`** (§10.1): there really is a
+start-of-sweep transient. Parking and settling before arming addresses it at
+its source and, unlike the margin, costs no sweep range and leaves the
+calibration valid.
+
 ---
 
 ## 10. Changes outside this folder
@@ -510,8 +555,9 @@ wanted the functionality in the GUI:
 | "Use λ(t) calibration" (default on) + status line | shows **before** a sweep whether a calibration exists for Start/Stop/Speed |
 | λ(t) axis + tail cropping in `_CoreDAQSweepWorker` | §3 |
 | **`Buffer time` removed entirely** (field, front crop, arming arithmetic) | §3.5 — its premise was refuted |
-| `Settle margin` kept, default 10 → **0 nm** | a non-zero value would silently disable the calibration; its own justification (saturation transient) is **not** refuted, only untested |
+| `Settle margin` kept, default 10 → **0 nm** | two reasons, both verified: (a) a non-zero value shifts the physical sweep start, so the calibration no longer matches and is silently skipped — back to the −5.4 nm linear axis; (b) the start-of-sweep transient it was compensating is now removed at its source by parking and settling before arming (§9.2). No clipping in the first 10 nm either (§11.3). |
 | wait for the armed window | §4.1 |
+| **park at the start wavelength and settle 5 s BEFORE arming** (`PARK_SETTLE_S`) | §9.2 — without it the first 10 nm of every GUI capture are degraded and the OFDR distance axis comes out 5 % short |
 | capture retry (4 attempts, 5 s pause) | §4.2 |
 | Samples/ch default 1,000,000 → 1,050,000, auto-fit on parameter change | matches sweep + 5 % head room, no more ⚠ warning |
 | all four coreDAQ channels by default | OFDR needs both MZI pairs from the **same** sweep |
@@ -538,18 +584,45 @@ configuration would then move to `Interface/config/` as well.
 
 ## 11. Open points
 
-1. **The GUI button does not yet give the right length.** The evaluation is
-   demonstrably identical to the script (the same `evaluate()` function,
-   verified on script data), but captures taken through the GUI have an aux
-   phase with ~5 % too few fringes (121,636 instead of 128,011), which
-   stretches the distance axis by the same factor: 2.846 m instead of 3.026 m.
-   Cause not yet found. **The script is the reliable path.**
+1. ~~**The GUI button does not yet give the right length.**~~ **RESOLVED.**
+   The symptom was an aux phase with ~5 % too few fringes in GUI captures
+   (121,212 against 128,015 in a script capture one minute later), stretching
+   the distance axis by the same factor: 2.846 m for a 3.026 m fibre. The cause
+   was the missing park-and-settle before arming (§9.2), which left the first
+   2 s of every capture degraded. After moving the park before the arming, the
+   button reports **3.0256 m** with **128,011** aux fringes — matching the
+   script's 3.02551–3.02568 m and 128,015 fringes.
+
+   Two bugs in my own code were found on the way there: the reference channel
+   pair was passed the string `"aux"` in `combine_pair`'s *mode* parameter, so
+   it was silently not balanced-subtracted; and the "strongest peak" report
+   picked the skirt of the interferometer's own peak at z ≈ 0 (−31 dB) over the
+   fibre peak (−31.7 dB), which is why the status line said −0.03 m. Both
+   fixed; `list_peaks` now excludes the near-zero region when an offset has
+   been subtracted.
 2. **Autorange notch** on strong peaks (§2.5) — probably TIA range switching.
    Testable with a fixed range instead of autorange.
-3. **`Settle margin`** — the saturation in the first ~10 nm was never
-   cross-checked, because with the filter in the path the start of the sweep is
-   dark. A sweep without the filter, looking for clipping in the first few nm,
-   would settle it.
+3. ~~**`Settle margin`** — the saturation in the first ~10 nm was never
+   cross-checked.~~ **CHECKED, and there is none** in the current optical
+   configuration: across two captures (with and without the park-and-settle),
+   **0.00 %** of samples sit at full scale in any wavelength range, and the
+   peak-to-peak in 1520–1530 nm (0.44–0.47 mW) is normal against 0.47–0.52 mW
+   at the end of the sweep — that difference is the fringe amplitude growing
+   across the sweep, not saturation.
+
+   Note what the 10 nm the margin defaulted to actually corresponded to: the
+   degradation found in §9.2 was **exactly 10 nm wide** (2 s at 5 nm/s), so the
+   value had been chosen correctly for a real effect. Parking and settling
+   before arming prevents that effect instead of skipping over it, which costs
+   no sweep range and keeps the calibration valid — hence the default of 0.
+
+   **Caveat:** the margin's original justification came from a different
+   optical configuration (laser straight into the coreDAQ, no EDFA or VOA in
+   the path). If that configuration returns, saturation could too. The order
+   to follow then: measure with margin 0 and look for clipping; if it clips,
+   fix the level or the range, or use the margin **and** calibrate that
+   configuration — the calibration has to match the physical sweep, which with
+   a 10 nm margin starts at 1510 nm, not 1520 nm.
 4. **Absolute scale** depends linearly on n_g = 1.4682. The differences are
    sound; absolute values would need a fibre of known length or an OSA
    comparison. Calibrating with `--trust-filter` also means: relative accuracy

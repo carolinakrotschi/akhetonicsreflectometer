@@ -74,7 +74,6 @@ Aufruf
 import argparse
 import csv as _csv
 import datetime
-import json
 import os
 import sys
 
@@ -86,6 +85,7 @@ from scipy.signal.windows import blackmanharris, hann, kaiser
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 import process_reflectogram_aux as pra  # noqa: E402
+from scan_io import load_scan  # noqa: E402
 
 ROOT = os.path.dirname(_HERE)
 C, NG = pra.C, pra.NG
@@ -102,16 +102,16 @@ def prep(path, trim=0.01):
     interpoliert. Alles andere (balanced, analytic, Trim, Monotonie) kommt
     unveraendert aus dem Hauptmodul.
     """
-    d = np.load(path, allow_pickle=True)
-    meta = json.loads(str(d["meta"])) if "meta" in d.files else {}
-    crop = meta.get("crop")
-    sl0 = slice(int(crop[0]), int(crop[1])) if crop else slice(None)
-    lam_raw = d["wavelength_nm"][sl0]
+    # scan_io: dieselben Arrays wie vorher fuer jede Mk1-Datei; eine Mk2-
+    # Aufnahme kommt roh (R(lambda) herausgerechnet), mit 100 kHz und in mW.
+    s = load_scan(path)
+    meta, ch = s["meta"], s["ch"]
+    lam_raw = s["wl_nm"]
     n = len(lam_raw)
     tau_aux = meta["wavelength_axis_aux"]["tau_aux_implied_s"]
 
-    aux, _ = pra.balanced(d["ch2"][sl0], d["ch4"][sl0])
-    meas, _ = pra.balanced(d["ch1"][sl0], d["ch3"][sl0])
+    aux, _ = pra.balanced(ch[2], ch[4])
+    meas, _ = pra.balanced(ch[1], ch[3])
 
     phi = np.unwrap(np.angle(pra.analytic(aux)))
     if phi[-1] < phi[0]:

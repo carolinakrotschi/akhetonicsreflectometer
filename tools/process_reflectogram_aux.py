@@ -46,7 +46,7 @@ Examples:
 """
 
 import argparse
-import json
+import os
 import sys
 
 import numpy as np
@@ -55,33 +55,32 @@ from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
 from scipy.signal.windows import kaiser, hann, blackmanharris
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from scan_io import (REFERENCE_RATE_HZ, describe, load_scan,  # noqa: E402
+                     write_sidecar)
+
 C = 299_792_458.0
 NG = 1.468
 
 
 # ---------------------------------------------------------------- loading
-def load(path):
-    """-> (ch1, ch2, ch3, ch4, meta). Accepts .npz and .json."""
-    if path.endswith(".npz"):
-        d = np.load(path)
-        meta = {k: d[k].item() for k in
-                ("step_us", "lam0_nm", "speed_nms") if k in d}
-        if "truth_z" in d:
-            meta["truth_z"] = d["truth_z"]
-            meta["truth_db"] = d["truth_db"]
-        return (d["ch1"], d["ch2"], d["ch3"], d["ch4"], meta)
+def load(path, undo_responsivity=True, target_rate_hz=REFERENCE_RATE_HZ):
+    """-> (ch1, ch2, ch3, ch4, meta). Accepts .npz and .json.
 
-    with open(path) as f:
-        doc = json.load(f)
-    e = doc["data"][0]
-    want = ["Ch1 [mW]", "Ch2 [mW]", "Ch3 [mW]", "Ch4 [mW]"]
-    missing = [k for k in want if k not in e]
+    Goes through scan_io.load_scan, so a Mk2 LOG capture comes back on the
+    same footing as the Mk1 scans (raw, 100 kHz, mW) -- see scan_io.py. For
+    every Mk1 file the four arrays are bit-identical to what this function
+    returned before. The provenance is in meta["_prov"].
+    """
+    s = load_scan(path, undo_responsivity=undo_responsivity,
+                  target_rate_hz=target_rate_hz)
+    missing = [n for n in (1, 2, 3, 4) if n not in s["ch"]]
     if missing:
-        sys.exit(f"Missing channels in file: {missing}\n"
-                 f"available keys: {list(e)}")
-    ch = [np.asarray(e[k], float) for k in want]
-    meta = {k: v for k, v in (e.get("Device Description") or {}).items()}
-    return (*ch, meta)
+        sys.exit(f"Missing channels in file: {['Ch%d' % n for n in missing]}\n"
+                 f"available: {['Ch%d' % n for n in sorted(s['ch'])]}")
+    meta = dict(s["meta"])
+    meta["_prov"] = s["prov"]
+    return (s["ch"][1], s["ch"][2], s["ch"][3], s["ch"][4], meta)
 
 
 # ------------------------------------------------- balanced subtraction
@@ -193,6 +192,13 @@ def build_argparser():
                         "unbalanced (one channel near the noise floor) and "
                         "balanced subtraction may be injecting more noise "
                         "than it cancels.")
+    p.add_argument("--native-rate", action="store_true",
+                   help="keep a capture faster than 100 kHz at its own rate. "
+                        "Default resamples it to 100 kHz so its noise floor "
+                        "compares with the Mk1 scans (scan_io.py)")
+    p.add_argument("--keep-responsivity", action="store_true",
+                   help="keep the GUI's R(lambda) correction. Default divides "
+                        "it back out, so all scans are raw like the Mk1 ones")
     p.add_argument("--out", default=None)
     return p
 
@@ -260,12 +266,20 @@ def process(a):
     else:
         sys.exit("specify --tau-aux-ns or --dl")
 
-    ch1_, ch2_, ch3_, ch4_, meta = load(a.scan)
+    ch1_, ch2_, ch3_, ch4_, meta = load(
+        a.scan,
+        undo_responsivity=not getattr(a, "keep_responsivity", False),
+        target_rate_hz=None if getattr(a, "native_rate", False)
+        else REFERENCE_RATE_HZ)
+    prov = meta["_prov"]
+    if any("CEILING" in w for w in prov["warnings"]):
+        warnings.append("clamped")
     chans = {1: ch1_, 2: ch2_, 3: ch3_, 4: ch4_}
     ch1, ch2 = chans[a.aux_a], chans[a.aux_b]
     ch3, ch4 = chans[a.meas_a], chans[a.meas_b]
     n = len(ch1)
     print(f"{a.scan}: {n:,} points x 4 channels")
+    print(f"detector: {describe(prov)}")
     print(f"aux (calibration) pair: Ch{a.aux_a}/Ch{a.aux_b}   "
           f"measurement pair: Ch{a.meas_a}/Ch{a.meas_b}")
     print(f"tau_aux = {tau_aux*1e9:.4f} ns  ({src})"
@@ -415,6 +429,18 @@ def process(a):
                np.column_stack([z[keep], db[keep]]), delimiter=",",
                header="distance_m,amplitude_dB", comments="")
     print(f"\nwrote: {prefix}_reflectogram.csv")
+    # Sidecar: what recorded the scan and how it was processed, so a
+    # comparison tool reading the CSV later can tell a Mk2 LOG trace (or one
+    # processed with other settings) from the Mk1 ones (scan_io.check_comparable).
+    side = write_sidecar(prefix, prov, extra={
+        "processing": {"window": a.window, "kaiser_beta": a.kaiser_beta,
+                       "pad_factor": a.pad_factor, "trim": a.trim,
+                       "single": bool(a.single), "tau_aux_ns": tau_aux * 1e9,
+                       "tau_aux_source": src, "zmax_m": float(zmax)},
+        "noise_floor_db": float(nf), "main_peak_m": float(z[i]),
+        "dz_bin_um": float(dz_bin * 1e6), "z_nyq_m": float(z_nyq),
+        "pipeline_warnings": warnings})
+    print(f"wrote: {side}")
 
     try:
         import matplotlib
@@ -430,7 +456,10 @@ def process(a):
         ax.set_xlabel("Distance (m, one-way / reflection convention)")
         ax.set_ylabel("Amplitude (dB rel. maximum)")
         ax.set_title(f"{a.scan} | aux-referenced, {a.window}, "
-                     f"dz {dz_bin*1e6:.1f} um, Nyquist {z_nyq:.2f} m")
+                     f"dz {dz_bin*1e6:.1f} um, Nyquist {z_nyq:.2f} m\n"
+                     f"{describe(prov)}"
+                     + ("   !! CLAMPED" if "clamped" in warnings else ""),
+                     fontsize=9)
         ax.grid(alpha=0.3)
         ax.set_ylim(max(-110, db[keep].min() - 5), 5)
         fig.tight_layout()
@@ -441,7 +470,7 @@ def process(a):
 
     return dict(z=z, db=db, R=R, dz_bin=dz_bin, z_nyq=z_nyq,
                 main_peak_m=z[i], peak_width_um=width * 1e6,
-                noise_floor_db=nf,
+                noise_floor_db=nf, prov=prov,
                 warnings=warnings, comparison=comparison)
 
 

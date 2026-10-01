@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from process_reflectogram_aux import noise_floor        # noqa: E402
+from scan_io import check_comparable, provenance_for  # noqa: E402
 
 N_FIBER = 1.468
 
@@ -143,6 +144,9 @@ def main():
                     help="mm hinter der Facette, bis wohin das Bauteilpanel geht")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
+    # Mk1/Mk2, rate, R(lambda), clamp -- from the _reflectogram.json sidecars
+    check_comparable([(lab, provenance_for(csv)) for csv, lab in
+                      [a.a, a.b] + ([a.c] if a.c else [])])
 
     scans = []
     for csv, label in [a.a, a.b] + ([a.c] if a.c else []):

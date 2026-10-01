@@ -29,6 +29,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scan_io import check_comparable, provenance_for  # noqa: E402
 
 SURFACE = "#fcfcfb"
 INK, INK2, MUTED = "#0b0b0b", "#52514e", "#8a8a85"
@@ -59,6 +60,10 @@ def main():
     ap.add_argument("--anchor", type=float, default=529.43)
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
+    # Mk1/Mk2, rate, R(lambda), clamp -- from the _reflectogram.json sidecars
+    check_comparable([(lab, provenance_for(p)) for lab, p in a.scan]
+                     + ([("control", provenance_for(a.control))]
+                        if a.control else []))
 
     S = []
     for k, (label, path) in enumerate(a.scan):

@@ -1,12 +1,12 @@
 """
-Headless Lina (EXFO T200S + LINEAR coreDAQ) sweep test & wavelength-axis
+Headless Lina (EXFO T200S + coreDAQ, continuous capture) sweep test & wavelength-axis
 calibration, extracted from LabGUI/dashboards/instruments/lina_window.py
 (``_CoreDAQSweepWorker``, stepped=False path) so the trigger-synchronisation
 problem can be investigated without the GUI.
 
 WHY THIS EXISTS
 ---------------
-In LINEAR mode the coreDAQ capture is started by ONE rising edge on the EXFO
+In continuous mode the coreDAQ capture is started by ONE rising edge on the EXFO
 "Trig out" BNC (OUTPut:SYNChronization:STATe ON goes high while the laser is
 sweeping) and then free-runs at its own sample rate, so every sample carries a
 TIME, not a wavelength. The GUI assumed the buffer maps linearly onto
@@ -96,6 +96,7 @@ from Interface.Lasers import EXFO
 from Interface.PowerMeters import CoreDAQ
 from lina.interface.TunableFilters import TOF1550
 # Fit / axis / crop logic lives in one place, shared with the Lina GUI window.
+from lina.analysis.lina_detector import build_detector, clamp_summary
 from lina.analysis.lina_wl_cal import (
     fit_time_to_wavelength, wavelength_axis, sweep_window,
     save_calibration, describe as describe_cal, CAL_DIR,
@@ -106,13 +107,32 @@ from lina.analysis.lina_wl_cal import (
 # Device helpers
 # ---------------------------------------------------------------------------
 
+def lina_coredaq_name(lina_name: str = "lina-1", fallback: str = "coredaq-1") -> str:
+    """The coreDAQ paired with a Lina in Interface/config/OBR_config.json.
+
+    The scripts' ``--coredaq`` default comes from here, so the GUI (which
+    preselects the same entry) and every script address the same unit and a
+    re-cabling is one edit. Since 2026-09-17 both coreDAQs are Mk2 LOG units
+    told apart only by serial (coredaq-1 = SN0001, coredaq-2 = SN0002).
+    """
+    import json
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..',
+                        'Interface', 'config', 'OBR_config.json')
+    try:
+        with open(path, encoding='utf-8') as fh:
+            return json.load(fh)["LINA"][lina_name]["coredaq_name"]
+    except Exception:
+        return fallback
+
+
 def open_devices(exfo_name: str, coredaq_name: str, filter_name: str = None):
     laser = EXFO(exfo_name)
     laser.open()
     pm = CoreDAQ(coredaq_name)
     pm.open()
     print(f"[dev] {exfo_name} @ {laser.ip}:{laser.port} | "
-          f"{coredaq_name} {pm.frontend()} @ {pm.get_sample_rate_hz()} Hz")
+          f"{coredaq_name} {pm.generation()} {pm.frontend()} "
+          f"{getattr(pm, '_want_serial', '') or ''} @ {pm.get_sample_rate_hz()} Hz")
     tof = None
     if filter_name:
         tof = TOF1550(filter_name)
@@ -146,7 +166,7 @@ def read_power_mw(pm, channels, n_avg: int = 4) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Triggered sweep capture — the LINEAR/continuous path, raw and uncropped
+# Triggered sweep capture — the continuous path, raw and uncropped
 # ---------------------------------------------------------------------------
 
 def run_sweep(laser, pm, *, start_nm, stop_nm, speed_nm_s, channels,
@@ -245,7 +265,7 @@ def run_sweep(laser, pm, *, start_nm, stop_nm, speed_nm_s, channels,
             print(f"[cap] acq_state={acq_state} "
                   f"({labels.get(acq_state, 'unknown/firmware-specific')})")
 
-            # Never finalize_capture() on LINEAR — stop_capture() zeroes the
+            # Never finalize_capture() in continuous mode — stop_capture() zeroes the
             # driver's armed-frame bookkeeping that the pre-v4.3 collect path
             # needs, turning the read into "no capture was armed".
             time.sleep(0.5)
@@ -304,7 +324,27 @@ def run_sweep(laser, pm, *, start_nm, stop_nm, speed_nm_s, channels,
             pass
 
     print(f"[cap] captured {n_pts} frames/ch ({n_pts / rate:.2f} s)")
+
+    # Which unit, and how much sat on a LOG clamp -- the same block the GUI
+    # writes, so a script capture says what recorded it. On the RAW buffer:
+    # the scripts apply no responsivity factor.
+    try:
+        detector = build_detector(pm, caps, frontend=pm.frontend(),
+                                  generation=pm.generation(),
+                                  sample_rate_hz=rate, capture_mode="continuous")
+        detector["wl_cal_applied"] = False
+        worst = clamp_summary(detector)
+        if worst:
+            print(f"[cap] WARNING LOG clamp: {', '.join(worst)} "
+                  f"(floor {detector['log_floor_mw']:.3g} mW, "
+                  f"ceiling {detector['log_ceiling_mw']:.3g} mW) -- "
+                  f"attenuate, a clamped fringe makes ghost peaks")
+    except Exception as e:
+        print(f"[cap] detector info unavailable: {e}")
+        detector = None
+
     return {
+        "detector": detector,
         "traces_mw": {int(ch): np.asarray(caps[ch], dtype=float)[:n_pts]
                       for ch in caps},
         "n_pts": n_pts,
@@ -1005,7 +1045,8 @@ def main():
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--exfo", default="exfo-1")
-    p.add_argument("--coredaq", default="coredaq-1")
+    p.add_argument("--coredaq", default=lina_coredaq_name(),
+                   help="default: the coreDAQ paired with lina-1 in OBR_config.json")
     p.add_argument("--filter", default="tof1550-1",
                    help="TOF1550 device name in TunableFilter_config.json")
     p.add_argument("--channels", default="1",

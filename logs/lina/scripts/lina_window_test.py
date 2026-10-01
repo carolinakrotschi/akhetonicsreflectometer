@@ -73,8 +73,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--device", default="lina-1")
-    p.add_argument("--capture", default="coredaq-1",
-                   help="capture device to select in the Response Sweep combo")
+    from lina_sweep_test import lina_coredaq_name
+    p.add_argument("--capture", default=lina_coredaq_name(),
+                   help="capture device to select in the Response Sweep combo "
+                        "(default: the coreDAQ paired with lina-1 in OBR_config.json)")
     p.add_argument("--channels", default="1",
                    help="coreDAQ channels to tick (1-based)")
     p.add_argument("--start", type=float, default=None, help="override Start (nm)")

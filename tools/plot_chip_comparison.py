@@ -46,6 +46,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 sys.path.insert(0, _HERE)
 from process_reflectogram_aux import noise_floor        # noqa: E402
+from scan_io import check_comparable, provenance_for  # noqa: E402
 from compare_span import load_marks, short_name         # noqa: E402
 
 COLORS = ("#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#8c564b", "#17becf")
@@ -261,6 +262,8 @@ def main():
                          "und Buckel mit ihrer Deutung ein")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
+    # Mk1/Mk2, rate, R(lambda), clamp -- from the _reflectogram.json sidecars
+    check_comparable([(lab, provenance_for(p)) for lab, p in a.scan])
 
     facets = a.facet if a.facet else ["auto"] * len(a.scan)
     if len(facets) != len(a.scan):

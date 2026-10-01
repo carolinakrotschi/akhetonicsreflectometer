@@ -47,6 +47,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 import process_reflectogram_aux as pra          # noqa: E402
 import plot_voa_series as pvs                   # noqa: E402
+from scan_io import check_comparable            # noqa: E402
 from compare_span import load_marks, short_name  # noqa: E402
 
 ROOT = os.path.dirname(_HERE)
@@ -213,8 +214,8 @@ def build_argparser():
         formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--scan", nargs=2, action="append", required=True,
                    metavar=("LABEL", "PFAD"),
-                   help="Beschriftung und .npz, mehrfach angebbar. Rohe "
-                        "JSON-Scans vorher durch tools/json_to_npz.py")
+                   help="Beschriftung und .npz/.json, mehrfach angebbar "
+                        "(.npz aus tools/json_to_npz.py laedt schneller)")
     p.add_argument("--out-dir", default=None, help="default results/<heute>")
     p.add_argument("--tag", default="scan_vergleich",
                    help="Praefix der Ausgabedateien")
@@ -240,6 +241,7 @@ def build_argparser():
     p.add_argument("--aux-b", type=int, default=4, choices=[1, 2, 3, 4])
     p.add_argument("--meas-a", type=int, default=1, choices=[1, 2, 3, 4])
     p.add_argument("--meas-b", type=int, default=3, choices=[1, 2, 3, 4])
+    pvs.add_comparability_args(p)
     return p
 
 
@@ -258,6 +260,7 @@ def main():
               "Aux-Kontrast min %3.0f %%  P_meas %.4f mW  P_aux %.4f mW"
               % (label, t["tau_aux"] * 1e9, t["fringes"],
                  t["amp_min"] * 100, t["p_meas"], t["p_aux"]))
+    check_comparable([(t["label"], t["prov"]) for t in traces])
 
     # gemeinsame Referenz: staerkster Peak ueber alle Spuren
     ref = max(traces, key=lambda t: t["R"].max())

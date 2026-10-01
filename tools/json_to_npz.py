@@ -10,13 +10,20 @@ exactly the values the JSON carries. Only the JSON text overhead goes
 away (every sample is written as a decimal string in the JSON, which is
 what makes those files so large).
 
-The wavelength axis is stored as start/stop/count rather than the full
-array, because the coreDAQ-LIN path builds it as a linear ramp anyway --
-the script checks that the stored array really is linear and refuses to
-drop it if it is not.
+The wavelength axis is stored as start/stop/count when it is a linear ramp
+(the uncalibrated fallback axis), and in full otherwise -- which is the
+normal case now: the lambda(t)-calibrated and the aux-referenced axes are
+not linear. The script checks rather than assumes.
 
-The result loads with the same `load()` used everywhere else in the
-pipeline (process_reflectogram_aux.py), which already accepts .npz.
+The power unit is kept as written (the Lina GUI auto-scales its columns to
+[uW] / [mW] / [W]) and recorded under "unit", so the round trip stays
+bit-identical; scan_io.load_scan converts to mW on reading. The header goes
+along whole, so a Mk2 capture keeps its "detector" block (frontend, serial,
+rate, clamp fractions, R(lambda) correction) -- the analysis needs it to stay
+comparable with the Mk1 scans.
+
+The result loads with scan_io.load_scan, which every analysis tool uses
+(process_reflectogram_aux.load and plot_voa_series.reflectogram included).
 
 Usage
     python tools/json_to_npz.py raw_data/2026-09-14-09-03_fiber4.json
@@ -27,6 +34,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -38,16 +46,20 @@ def convert(src, out=None, verify=False):
     with open(src) as fh:
         doc = json.load(fh)
     e = doc["data"][0]
-    missing = [k for k in CHANNELS if k not in e]
+    # "ChN [unit]" in any power unit -- older scans use [W], the GUI writes
+    # whatever it auto-scaled to. All four must share one unit.
+    found = {}
+    for k in e:
+        m = re.match(r"^Ch(\d) \[([^\]]+)\]$", k)
+        if m:
+            found[int(m.group(1))] = (k, m.group(2))
+    missing = [c for c in CHANNELS if int(c[2]) not in found]
     if missing:
-        # some older scans use [W] instead of [mW]
-        alt = [k.replace("[mW]", "[W]") for k in CHANNELS]
-        if all(k in e for k in alt):
-            keys, unit = alt, "W"
-        else:
-            sys.exit("%s: missing channels %s" % (src, missing))
-    else:
-        keys, unit = CHANNELS, "mW"
+        sys.exit("%s: missing channels %s" % (src, missing))
+    units = {found[n][1] for n in (1, 2, 3, 4)}
+    if len(units) != 1:
+        sys.exit("%s: channels in different units %s" % (src, sorted(units)))
+    keys, unit = [found[n][0] for n in (1, 2, 3, 4)], units.pop()
 
     ch = [np.asarray(e[k], float) for k in keys]
     n = len(ch[0])

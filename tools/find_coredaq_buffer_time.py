@@ -20,29 +20,35 @@ Usage:
 """
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from scan_io import load_scan  # noqa: E402
+
 
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("scan")
-    p.add_argument("--rate", type=float, required=True,
-                   help="coreDAQ sample rate in Hz")
+    p.add_argument("--rate", type=float, default=None,
+                   help="coreDAQ sample rate in Hz (default: from the file "
+                        "header -- rate_hz or detector.sample_rate_hz)")
     p.add_argument("--smooth", type=int, default=500)
     p.add_argument("--out", default=None)
     args = p.parse_args()
 
-    with open(args.scan) as f:
-        doc = json.load(f)
-    e = doc["data"][0]
-    ch2 = np.asarray(e["Ch2 [mW]"], float)
-    ch4 = np.asarray(e["Ch4 [mW]"], float)
+    # Timing tool: native rate, never resampled.
+    s = load_scan(args.scan, target_rate_hz=None)
+    if args.rate is None:
+        args.rate = s["prov"]["rate_hz_native"]
+        if not args.rate:
+            sys.exit("the file does not record its sample rate -- pass --rate")
+        print(f"rate from header: {args.rate:g} Hz")
+    ch2, ch4 = s["ch"][2], s["ch"][4]
     n = len(ch2)
     t = np.arange(n) / args.rate
 

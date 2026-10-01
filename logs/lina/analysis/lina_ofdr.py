@@ -1,11 +1,11 @@
 """
-OFDR evaluation for Lina (EXFO sweep + LINEAR coreDAQ), shared by the
+OFDR evaluation for Lina (EXFO sweep + coreDAQ continuous capture), shared by the
 measurement script (``scripts/lina_ofdr_test.py``) and the GUI window
 (``LabGUI/dashboards/instruments/lina_window.py``).
 
 The physics, all of it established by measurement on this setup:
 
-  * a LINEAR coreDAQ capture is uniform in TIME, but an FFT only resolves
+  * a continuous coreDAQ capture is uniform in TIME, but an FFT only resolves
     delays if the signal is uniform in OPTICAL FREQUENCY. The EXFO is not
     (1-2 % fast, slightly non-uniform — see Analysis/lina_wl_cal.py).
   * the aux MZI has a FIXED path imbalance, so its unwrapped fringe phase IS

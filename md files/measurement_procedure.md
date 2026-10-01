@@ -275,6 +275,30 @@ before.
 
 ---
 
+## Measuring with the Mk2 LOG coreDAQ (since 2026-09-17)
+
+Everything above was written for, and measured with, the Mk1 LINEAR unit.
+To keep a new scan comparable with those:
+
+| Before / during the capture | Why |
+|---|---|
+| `coredaq_name` of `lina-1` in AKHExperiment `Interface/config/OBR_config.json` names the unit that is actually cabled | both units are LOG, only the serial (SN0001 / SN0002) tells them apart; the file header records it |
+| Capture mode **Continuous (OFDR)**, rate **100 kHz** | every Mk1 scan is 100 kHz. The analysis resamples faster captures down, but that also filters noise the Mk1 scans folded in, so 100 kHz at the bench is the clean comparison |
+| Same sweep as the scan you compare with (e.g. 1520–1570 nm or 1505–1625 nm, 5 nm/s) | resolution, range and noise floor all depend on span and point count |
+| **No clamp:** the plot's y-label / script terminal must not report `LOG clamp … at ceiling` | the LOG input pins everything above ~3 mW without a flag; a clamped fringe makes ghost peaks. Turn the VOA down and repeat |
+| GUI "λ-cal correction" on or off — either is fine | the GUI now stores the factor, and the analysis divides it back out |
+
+After the capture, every tool prints one line like
+`detector: Mk2 LOG SN0001 | 100 kHz | R(lambda) undone | clamp ceil 0 % floor 0 %`
+and the comparison tools a table over all scans. A `WARNING` there is a
+reason to stop, not to annotate.
+
+**Not yet validated on hardware** (open, see `logs/2026-10-01.md`): that
+noise floor and dB levels of a Mk2 scan match a Mk1 scan of the same setup.
+Until then compare peak positions freely, dB levels only with a note.
+
+---
+
 ## If something doesn't fit
 
 | Symptom | First suspect | Test |

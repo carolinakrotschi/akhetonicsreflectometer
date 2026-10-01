@@ -1,5 +1,5 @@
 """
-OFDR measurement + aux-referenced FFT for Lina (EXFO T200S + LINEAR coreDAQ).
+OFDR measurement + aux-referenced FFT for Lina (EXFO T200S + coreDAQ, continuous capture).
 
 Setup this assumes (override with --meas / --ref):
 
@@ -738,7 +738,9 @@ def main():
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--exfo", default="exfo-1")
-    p.add_argument("--coredaq", default="coredaq-1")
+    from lina_sweep_test import lina_coredaq_name
+    p.add_argument("--coredaq", default=lina_coredaq_name(),
+                   help="default: the coreDAQ paired with lina-1 in OBR_config.json")
     p.add_argument("--out", default="lina_ofdr_data")
     p.add_argument("--tag", default="")
     # channel roles

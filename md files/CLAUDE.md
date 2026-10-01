@@ -39,6 +39,15 @@
   known artifacts such as the 46.4mm reference peak and the fixed internal
   reflections around 587mm/518mm).
 
+- **Raw scans only through `tools/scan_io.load_scan`** (or the tools that
+  already use it: `process_reflectogram_aux.load`, `plot_voa_series.reflectogram`).
+  Never `json.load` a scan and read `"Ch1 [mW]"` directly in a new tool: the
+  GUI may write `[uW]`, a Mk2 LOG file may carry an R(λ) correction and a
+  1 MHz rate, and only `scan_io` undoes those so the scan compares with the
+  Mk1 ones. A tool comparing several reflectogram CSVs calls
+  `scan_io.check_comparable` with `provenance_for(csv)`.
+  `python tools/test_scan_io.py` must pass after any change to `scan_io.py`.
+
 - **Daily log:** For every calendar day on which work happens in this
   directory, `logs/<YYYY-MM-DD>.md` should exist. If today's doesn't exist
   yet, create it on the first command you run. Log every notable command

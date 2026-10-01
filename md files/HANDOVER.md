@@ -63,6 +63,14 @@ that this is consistent with whatever the topology turns out to be.
   sample per external trigger, ≤50 kHz, ~130k-point trigger-mode buffer, 1M
   free-run buffer, 1 µs minimum averaging. Ch1/Ch2 = the two complementary
   outputs of the recombining coupler.
+- **Detector change (2026-09-17, in the analysis since 2026-10-01):** every
+  scan up to 2026-09-17 was taken with the Mk1 **LINEAR** demo unit. Both
+  coreDAQs are now Mk2 InGaAs **LOG** units (`coredaq-1` = SN0001,
+  `coredaq-2` = SN0002). Same file format, different signal: noise ~constant
+  in dB instead of in mW, never negative, a **silent clamp at ~3 mW** (no
+  over-range flag), up to 1 MS/s. New files carry a `detector` header block
+  (unit, serial, rate, clamp fractions, R(λ) correction); a file without one
+  is Mk1. `tools/scan_io.py` puts both on the same footing — see §7.
 - **Topology:** all-SM for now (PM planned later), all connectors FC/APC.
   A circulator gives the reflective path; the fiber under test is a **~1 m
   patchcord** with a transparent cap on the far end (cap currently ON).
@@ -397,6 +405,18 @@ Do NOT smooth the aux phase (it must track the ~4.7 pm ripple).
   "no reflector beyond it, ever, unless terminated."
 - Fixed power range on every CoreDAQ channel (autoranging mid-sweep = phase
   discontinuity = unwrap corruption to end of scan).
+- **Mk2 LOG: no channel on the ceiling clamp.** Keep every channel below
+  ~3 mW (VOA). A clamped fringe gives ghost peaks at multiples of the real
+  delay. The recorder and every analysis tool report the clamp fraction;
+  anything above 0 % on the ceiling means re-measure, not explain.
+- **Raw scans are read only through `tools/scan_io.load_scan`.** It returns
+  Mk1 files bit-identical to before, and Mk2 files raw (the GUI's R(λ)
+  correction divided back out), resampled to 100 kHz and in mW, so new and
+  old scans stay comparable. Measure at 100 kHz anyway: resampling a faster
+  capture also filters noise the Mk1 scans folded in. Until the Mk2
+  reference capture is done (`logs/2026-10-01.md`), compare peak
+  **positions** across detectors freely, noise floors and dB levels only with
+  a note.
 - Validate any pipeline change on synthetic data with known ground truth
   before real data. (The old synthetic-CSV validator for the legacy
   `legacy/reflectometer_csv_generic.py` path was retired 2026-08-18 as

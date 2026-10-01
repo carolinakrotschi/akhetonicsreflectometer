@@ -59,6 +59,9 @@ from scipy.ndimage import uniform_filter1d
 from scipy.signal import butter, filtfilt
 from scipy.signal.windows import kaiser
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from scan_io import load_scan  # noqa: E402
+
 C = 299_792_458.0
 NG = 1.468
 STEP_M = 1e-12
@@ -66,11 +69,9 @@ STEP_M = 1e-12
 
 # ---------------------------------------------------------------- shared
 def load(path):
-    with open(path) as f:
-        d = json.load(f)["data"][0]
-    wl = np.asarray(d["Wavelength [nm]"], float) * 1e-9
-    p1 = np.asarray(d["Ch1 [mW]"], float)
-    p2 = np.asarray(d["Ch2 [mW]"], float)
+    s = load_scan(path, target_rate_hz=None)     # stepped mode: no rate
+    wl = s["wl_nm"] * 1e-9
+    p1, p2 = s["ch"][1], s["ch"][2]
     keep = np.ones(len(wl), bool)
     keep[1:] = np.diff(wl) > -10e-12
     return wl[keep], p1[keep], p2[keep]

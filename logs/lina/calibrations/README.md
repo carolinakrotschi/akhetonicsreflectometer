@@ -38,6 +38,49 @@ python lina/scripts/lina_sweep_test.py --channels 2 calibrate \
     --filter-positions <list of nm inside the range>
 ```
 
-The lookup refuses a mismatched calibration rather than guessing. Drift is not
+The lookup refuses a mismatched calibration rather than guessing. It matches on
+start/stop/speed only, not on the coreDAQ — the λ(t) fit is a property of the
+EXFO sweep and the trigger timing. The existing file was measured with the Mk1
+LINEAR coreDAQ; it should carry over to the Mk2 (a µs-scale trigger-latency
+change is fm at 5 nm/s), but **one confirming calibration run on the Mk2 is
+still outstanding**. Drift is not
 a concern: measured at +0.0 pm/min over 18 minutes, so a calibration does not
 go stale within a session.
+
+## `aux_mzi.json` — the aux delay, as a watchdog
+
+**Not present yet.** This file holds one number, `tau_aux_s`, the aux MZI's
+delay. It is deliberately NOT what sets any axis: `aux_wavelength_axis` takes
+its scale from the commanded sweep endpoints, so a stale value here cannot
+corrupt a measurement. Its two jobs are:
+
+* **staleness.** Every sweep implies an aux delay in passing (fringes divided
+  by the endpoints' frequency span). Compared against this file, a changed
+  bench announces itself instead of being discovered months later.
+* **aliasing.** A cleanly aliased fringe is invisible in the capture — folding
+  a pure tone gives another pure tone with a smooth, monotonic phase, so every
+  intrinsic check passes. The implied delay is the only thing that gives it
+  away, and without this file that check cannot run.
+
+**Why it is missing rather than filled in.** The value measured on 2026-09-01
+(20.3877 ns, from `lina/analysis/` on the OFDR captures) no longer describes
+the bench. Measured 2026-09-15 on two fibres over two sweep windows, the
+captures imply **20.635 ns** (1520–1570 nm, anchored by the λ(t) calibration
+above) and **20.66 ns** (1505–1625 nm, anchored by the commanded endpoints) —
+about +1.2 % on the stored figure, i.e. roughly 5 cm of fibre. An independent
+sign of the same change: the measurement pair now correlates +0.4 to +0.5
+where `report.md` §6.1 recorded −0.88 to −0.99, so the arm was re-patched.
+
+A 2.07 m reference fibre backs the new figure: it reads 2.069 m with the
+correction and 2.037 m without.
+
+Writing the file is therefore a measurement decision, not a code one. Either
+take 20.635 ns from the λ(t)-anchored captures, or — better — re-run the
+three-minute filter calibration, which produces a fresh λ(t) *and* a fresh
+aux delay for the bench as it stands:
+
+```bash
+python lina/scripts/lina_sweep_test.py --channels 2 calibrate \
+    --start 1520 --stop 1570 --speed 5 --rate 5000 --trust-filter \
+    --filter-positions 1530,1535,1540,1545,1550,1555,1560,1565
+```

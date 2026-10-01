@@ -1,12 +1,53 @@
 # Scripts
 
-Four command-line tools written on 2026-09-01. All of them run from the
-repository root and expect the Lina hardware (`exfo-1` + `coredaq-1`, plus
-`tof1550-1` for the calibration) to be free — close AkheLab first, since
+Seven command-line tools. All of them run from the
+repository root and expect the Lina hardware (`exfo-1` + the paired coreDAQ,
+plus `tof1550-1` for the calibration) to be free — close AkheLab first, since
 LabDevice allows one instance per serial id and the coreDAQ's USB port is
 exclusive.
 
 Reasoning behind every design decision: `../report.md`.
+
+---
+
+## The coreDAQ: Mk2 LOG since 2026-09-17
+
+Everything up to 2026-09-17 was measured with the Mk1 **LINEAR** demo unit.
+Both coreDAQs are now **Mk2 InGaAs LOG** units (`coredaq-1` = SN0001,
+`coredaq-2` = SN0002), told apart only by serial. What that means here:
+
+- **Which unit:** `coredaq_name` of `lina-1` in `Interface/config/OBR_config.json`.
+  The GUI preselects it and every script's `--coredaq` defaults to it, so
+  re-cabling is that one edit. The driver resolves the port by serial and
+  refuses a unit whose serial does not match.
+- **Capture mode** is no longer inferred from the variant. The GUI has a
+  *Continuous (OFDR)* / *Stepped* combo, defaulting to continuous; the scripts
+  were always continuous.
+- **Needs py-coredaq 2.4.0** (`requirements.txt`). 1.2.1 rejects Mk2 firmware
+  v1.6 with an error advising a firmware update — do **not** flash, it may
+  cost the 1 MS/s tier.
+- **The signal is still mW**, linearised from the device's 128-point LUT, but:
+  no autorange jumps; noise roughly constant in dB (relative) rather than
+  constant in mW; never negative — dark samples sit on a clamp floor; and a
+  **silent clamp at ~3 mW** (no over-range flag). The GUI and the scripts
+  (`run_sweep`, so also `lina_chip_measure` / `lina_voa_series`) count samples
+  on either clamp and write it to the saved header / NPZ meta (`detector`,
+  built by `lina/analysis/lina_detector.py`); the scripts also print a warning.
+  A clamped fringe shows up in OFDR as ghost peaks at multiples of the real
+  delay.
+- **Bandwidth depends on photocurrent:** 150 kHz above ~10 nW, 50 kHz at 1 nW,
+  unspecified below. Fringes at 5 nm/s are ~13 kHz (aux) and ~22 kHz (3 m fibre),
+  so this only bites if fringe minima drop below ~1 nW.
+- **Rate:** up to 1 MS/s on the HIGH tier (GUI ceiling follows the unit). At
+  that rate the ~150 kHz analog bandwidth, not Nyquist, limits the delay range.
+- **Responsivity correction** (`λ-cal correction` in the GUI) is now active on
+  the continuous path; the scripts stay raw (see `lina_chip_measure.py`). The
+  GUI stores the factor's ingredients in `detector.responsivity_correction`,
+  so an analysis can divide it back out and compare GUI captures with raw ones
+  (the reflectometer repo's `tools/scan_io.py` does that by default).
+- **To confirm on first use:** repeat a reference capture (1 m / 3 m patch
+  cord, 1520–1570 nm, 5 nm/s, 100 kHz) against 1.0397 m / 3.0256 m, and re-run
+  one TOF1550 calibration to check the λ(t) fit carried over from the Mk1.
 
 ---
 
@@ -22,7 +63,7 @@ one implementation and cannot drift apart.
 
 ## `lina_sweep_test.py` — capture and wavelength calibration
 
-The headless version of the Lina Response Sweep (the LINEAR coreDAQ path),
+The headless version of the Lina Response Sweep (the continuous coreDAQ path),
 plus the λ(t) calibration workflow.
 
 | Subcommand | Purpose |
@@ -90,6 +131,83 @@ python lina/scripts/lina_window_test.py --channels 1,2,3,4 --ofdr
 
 This is what found the `"aux"`-in-the-mode-parameter bug and the premature-read
 bug (`../report.md` §4.1, §10, §11).
+
+---
+
+## `lina_chip_measure.py` — a guided measurement session
+
+The Lina GUI's Response Sweep, repeated over channels and sweep windows without
+the clicking. It asks which channel(s) to measure, then per channel: prompts
+for the patch change with the emission off, runs every window unattended, and
+names the files itself. Afterwards it asks again, so one session covers as
+many channels as you like; an empty answer ends it.
+
+Same capture path as `lina_sweep_test sweep`, same Auto-fit sample count as
+the GUI, same wavelength axis (λ(t) calibration → aux fringe → linear).
+
+```bash
+python lina/scripts/lina_chip_measure.py --dry-run          # the plan, no hardware
+python lina/scripts/lina_chip_measure.py --chip 2680 --label ligentechhi
+python lina/scripts/lina_chip_measure.py --fibers 44,48 --connected 44
+```
+
+One `<chip>_<label>_<YYYYmmdd-HHMMSS>_fiber<NN>_<window>.npz` per capture in
+`--out` (default `lina/raw_data`), plus a quicklook PNG. The NPZ layout is the
+one `load_raw` reads, with the wavelength axis in `wl_nm` and the crop it
+belongs to in `meta["crop"]`, so the OFDR tools take these files directly:
+
+```bash
+python lina/scripts/lina_ofdr_test.py peaks --raw lina/raw_data/<file>.npz
+```
+
+---
+
+## `lina_voa_series.py` — a VOA attenuation series
+
+Ten (or N) identical wide-window sweeps on one fibre, one per setting of the
+manual variable optical attenuator. It stops before every capture, shows the
+live CW power so the knob can be turned to a visible level, and records what
+you type there as that capture's VOA setting — so the setting ends up in the
+file rather than in your memory.
+
+Same capture path, wavelength axis and NPZ layout as `lina_chip_measure.py`,
+whose helpers it imports rather than copies. Always the wide 1505–1625 nm
+window, which has no λ(t) calibration and is carried by the aux fringe.
+
+```bash
+python lina/scripts/lina_voa_series.py --dry-run        # the plan, no hardware
+python lina/scripts/lina_voa_series.py --fiber 48 --runs 10
+python lina/scripts/lina_voa_series.py --fiber 48 --start-index 8 --runs 3
+```
+
+Files are `<chip>_<YYYYmmdd-HHMMSS>_fiber<NN>_fullnmrange_<i>.npz`, the
+timestamp being the session's, so a series is one contiguous block of names
+differing only in the trailing index. Two figures close it: `_stacked.png`
+(one panel per run, shared axes) and `_levels.png` (mean power against run
+index). The stacked figure is linear with a min/max envelope up to ~13 dB of
+spread and logarithmic with peak hold past it — `--log-y` / `--linear-y`
+force either.
+
+`--replot "<glob>"` rebuilds both figures from saved NPZs without hardware, so
+a session interrupted at run 7 still gets its figure.
+
+---
+
+## `lina_npz_to_json.py` — captures in the house JSON format
+
+Turns the NPZs into `{"header": …, "data": [{…}]}` JSON, the format the rest of
+AKHExperiment stores measurements in and the one the GUI's "Save Data" writes.
+No hardware, so it can be run long after the session.
+
+```bash
+python lina/scripts/lina_npz_to_json.py                 # all of lina/raw_data
+python lina/scripts/lina_npz_to_json.py --out L:/Measurements/2680 <file>.npz
+```
+
+Columns are cropped to `meta["crop"]`, so `Wavelength [nm]` and the `Ch<n> [mW]`
+columns all have the same length. It is text: ~50 MB per 1 M samples, ~123 MB
+per 2.4 M. Numbers are written at 1 fm / 6 significant figures, past what the
+instruments resolve but well short of float64's 17 digits.
 
 ---
 

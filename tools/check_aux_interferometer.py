@@ -46,11 +46,14 @@ Examples:
 """
 
 import argparse
-import json
+import os
 import sys
 
 import numpy as np
 from scipy.ndimage import uniform_filter1d
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from scan_io import load_scan  # noqa: E402
 
 C = 299_792_458.0
 NG = 1.468
@@ -59,21 +62,14 @@ NG = 1.468
 def load(path):
     """-> (ch1, ch2, ch3, ch4, step_us). ch3/ch4 are None if not present
     (older 2-channel files/sims)."""
-    if path.endswith(".npz"):
-        d = np.load(path)
-        step = float(d["step_us"]) if "step_us" in d else 1.0
-        ch3 = d["ch3"] if "ch3" in d else None
-        ch4 = d["ch4"] if "ch4" in d else None
-        return d["ch1"], d["ch2"], ch3, ch4, step
-    with open(path) as f:
-        e = json.load(f)["data"][0]
-    need = ["Ch1 [mW]", "Ch2 [mW]"]
-    if any(k not in e for k in need):
-        sys.exit(f"Ch1/Ch2 missing. Available keys: {list(e)}")
-    ch3 = np.asarray(e["Ch3 [mW]"], float) if "Ch3 [mW]" in e else None
-    ch4 = np.asarray(e["Ch4 [mW]"], float) if "Ch4 [mW]" in e else None
-    return (np.asarray(e["Ch1 [mW]"], float),
-            np.asarray(e["Ch2 [mW]"], float), ch3, ch4, 1.0)
+    # scan_io: same arrays as before for every Mk1 file; a Mk2 capture comes
+    # back raw, at 100 kHz, in mW, with a clamp warning if there is one.
+    s = load_scan(path)
+    ch = s["ch"]
+    if 1 not in ch or 2 not in ch:
+        sys.exit(f"Ch1/Ch2 missing. Available: {sorted(ch)}")
+    step = float(s["meta"].get("step_us", 1.0))
+    return ch[1], ch[2], ch.get(3), ch.get(4), step
 
 
 def balanced(a, b, nseg=32):

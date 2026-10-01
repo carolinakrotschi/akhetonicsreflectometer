@@ -32,6 +32,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scan_io import check_comparable, provenance_for  # noqa: E402
 
 ANCHOR_MM = 529.43       # interner Reflex des PM-Aufbaus, in allen Scans gleich
 WIN_MM = 0.5             # Fensterbreite fuer die Nullverteilung
@@ -64,6 +65,10 @@ def main():
                     metavar=("LO", "HI"), help="Vorhersagefenster hinter A in mm")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
+    # Mk1/Mk2, rate, R(lambda), clamp -- from the _reflectogram.json sidecars
+    check_comparable([("Faser " + f, provenance_for(p)) for f, p in a.scan]
+                     + ([("Kontrolle", provenance_for(a.control))]
+                        if a.control else []))
 
     S = {}
     for fib, path in a.scan:

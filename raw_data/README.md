@@ -1,5 +1,13 @@
 # Raw data — file index
 
+**Detector.** Every file listed below up to 2026-09-17 was recorded with the
+Mk1 **LINEAR** coreDAQ demo unit. Since then both coreDAQs are Mk2 **LOG**
+units (SN0001, SN0002). A Mk2 file carries a `detector` block in its header
+(unit, serial, rate, clamp fractions, R(λ) correction); a file without one is
+Mk1. For new entries add a column **Detector** (e.g. `Mk2 LOG SN0001,
+100 kHz`) and note any clamp the recorder reported. Read all of them through
+`tools/scan_io.py` -- see `md files/HANDOVER.md` §7.
+
 **Scans from 2026-09-11 onwards ARE in the repository, as `.npz`.** The raw
 `.json` still cannot be pushed -- each one is ~155 MB, past GitHub's hard
 100 MB per-file limit -- but the same data stored as a compressed `.npz`

@@ -68,6 +68,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 import process_reflectogram_aux as pra      # noqa: E402
 import plot_voa_series as pv                # noqa: E402
+from scan_io import check_comparable        # noqa: E402
 from identify_chip_scan import SAT_MM       # noqa: E402
 
 ROOT = os.path.dirname(_HERE)
@@ -145,6 +146,7 @@ def build_argparser():
     p.add_argument("--aux-b", type=int, default=4, choices=[1, 2, 3, 4])
     p.add_argument("--meas-a", type=int, default=1, choices=[1, 2, 3, 4])
     p.add_argument("--meas-b", type=int, default=3, choices=[1, 2, 3, 4])
+    pv.add_comparability_args(p)
     return p
 
 
@@ -296,6 +298,8 @@ def main():
             a.snr_thresh)
         runs.append(r)
         print("  %s verarbeitet" % (label or "Lauf %d" % run), flush=True)
+    check_comparable([(r["label"] or "Lauf %d" % r["run"], r["prov"])
+                      for r in runs])
 
     plot(runs, a, os.path.join(out_dir, "%s_chipzoom.png" % a.tag))
 

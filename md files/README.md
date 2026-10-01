@@ -35,6 +35,8 @@ Not part of the day-to-day pipeline above, but useful on their own.
 
 | Script | What it does |
 |---|---|
+| `scan_io.py` | **The one loader for raw scans** (.json, .npz from `json_to_npz.py`, Lina recorder .npz, simulations). Mk1 LINEAR files come back bit-identical to the old loaders; Mk2 LOG files come back raw (GUI R(λ) correction undone), at 100 kHz, in mW, with LOG clamp fractions. Also writes/reads the `_reflectogram.json` provenance sidecar and prints the comparability table (`check_comparable`) the comparison tools show. Since 2026-10-01. |
+| `test_scan_io.py` | Synthetic checks for `scan_io.py` (R(λ) undo, units, 1 MHz → 100 kHz, clamps, crop, json_to_npz round trip). `python tools/test_scan_io.py`, ~10 s. |
 | `plot_band_comparison.py` | Compares the 6-32cm "dirt band" across several raw scans on one plot (built 2026-08-18 for the terminator investigation, see `raw_data/README.md`). |
 
 (2026-08-18: `check_aliasing.py` was merged into `diagnose_artifacts.py` as

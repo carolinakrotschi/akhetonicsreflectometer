@@ -58,8 +58,12 @@ import glob
 import importlib.util
 import json
 import os
+import sys
 
 import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from scan_io import clamp_fractions, detector_of  # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINA = os.path.join(HERE, "logs", "lina")
@@ -122,8 +126,18 @@ def tau_from_pairs(phase, t, points, lam_key="true_nm"):
 
 def analyse_file(path, cal, mod, args):
     traces, meta = load_capture(path)
-    rate = float(meta.get("rate_hz", args.rate))
+    rate = float(meta.get("rate_hz")
+                 or (meta.get("detector") or {}).get("sample_rate_hz")
+                 or args.rate)
     name = os.path.basename(path)
+
+    # LOG clamp: a fringe sitting on the ceiling counts wrong. Native buffer,
+    # nothing resampled -- this tool works in time, not in samples.
+    det, _ = detector_of(meta)
+    for ch_name, c in clamp_fractions(traces, det).items():
+        if c["ceiling"] > 0:
+            print(f"  WARNING {name}: {ch_name} {100 * c['ceiling']:.3g} % "
+                  f"auf der Klemme (Decke) -- Fringes verzerrt")
 
     missing = [c for c in args.aux if c not in traces]
     if missing:

@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from process_reflectogram_aux import noise_floor          # noqa: E402
+from scan_io import check_comparable, provenance_for  # noqa: E402
 import gds_netlist_ligentec as G                          # noqa: E402
 
 N_FIBER = 1.468
@@ -63,6 +64,10 @@ def main():
     ap.add_argument("--label", default="Bauteil")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
+    # Mk1/Mk2, rate, R(lambda), clamp -- from the _reflectogram.json sidecars
+    if a.ref:
+        check_comparable([("scan", provenance_for(a.scan)),
+                          ("ref", provenance_for(a.ref))])
 
     ch = 96 - a.fiber
     if a.path_um:

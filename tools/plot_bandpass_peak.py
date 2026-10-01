@@ -17,21 +17,24 @@ Usage:
 """
 
 import argparse
-import json
+import re
 import sys
 from pathlib import Path
 
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from scan_io import load_scan  # noqa: E402
+
 
 def load_wl_channel(path, channel="Ch4 [mW]"):
-    with open(path) as f:
-        doc = json.load(f)
-    e = doc["data"][0]
-    wl = np.asarray(e["Wavelength [nm]"], float)
-    x = np.asarray(e[channel], float)
-    return wl, x
+    """Wavelength and one channel in mW. `channel` is "Ch4", "4" or the old
+    column name "Ch4 [mW]" -- the unit no longer matters, scan_io converts.
+    R(lambda) is divided back out, so a peak POWER compares with Mk1 scans."""
+    n = int(re.search(r"\d", channel).group())
+    s = load_scan(path, target_rate_hz=None)
+    return s["wl_nm"], s["ch"][n]
 
 
 def find_peak(wl, x, smooth_pts=100):

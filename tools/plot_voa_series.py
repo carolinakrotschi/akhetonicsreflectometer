@@ -34,7 +34,6 @@ Aufruf
 
 import argparse
 import datetime
-import json
 import os
 import re
 import sys
@@ -46,6 +45,8 @@ from scipy.signal.windows import blackmanharris, hann, kaiser
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 import process_reflectogram_aux as pra  # noqa: E402
+from scan_io import (REFERENCE_RATE_HZ, check_comparable,  # noqa: E402
+                     load_scan)
 
 ROOT = os.path.dirname(_HERE)
 MIN_PEAK_SPACING_M = 200e-6      # wie in process_reflectogram_aux.py
@@ -67,12 +68,15 @@ def reflectogram(path, a):
     """Ein Lauf -> dict mit z [m], linearer Amplitude (fenstersummen-
     normiert), Metadaten und Diagnose. Die dB-Skala kommt erst spaeter,
     wenn die gemeinsame Referenz ueber alle Laeufe bekannt ist."""
-    d = np.load(path, allow_pickle=True)
-    meta = json.loads(str(d["meta"])) if "meta" in d.files else {}
-
-    crop = meta.get("crop")
-    sl = slice(int(crop[0]), int(crop[1])) if crop else slice(None)
-    ch = {i: d["ch%d" % i][sl] for i in (1, 2, 3, 4)}
+    # scan_io: same crop as before for every existing file (bit-identical),
+    # and a Mk2 LOG capture comes back raw, at 100 kHz, in mW -- this tool
+    # compares ABSOLUTE levels across scans (common reference, FFT divided by
+    # the window sum), so both of those move its dB numbers.
+    s = load_scan(path,
+                  undo_responsivity=not getattr(a, "keep_responsivity", False),
+                  target_rate_hz=None if getattr(a, "native_rate", False)
+                  else REFERENCE_RATE_HZ)
+    meta, ch = s["meta"], s["ch"]
 
     if a.tau_aux_ns is not None:
         tau_aux = a.tau_aux_ns * 1e-9
@@ -93,7 +97,7 @@ def reflectogram(path, a):
     z = np.arange(len(R)) * pra.C / (2 * pra.NG * dnu * m)
 
     return dict(
-        path=path, meta=meta, z=z, R=R, tau_aux=tau_aux,
+        path=path, meta=meta, prov=s["prov"], z=z, R=R, tau_aux=tau_aux,
         dz_bin=pra.C / (2 * pra.NG * span_nu),
         z_nyq=pra.C / (4 * pra.NG * dnu),
         fringes=diag["fringes"], amp_min=diag["amp_min"],
@@ -300,7 +304,19 @@ def build_argparser():
     p.add_argument("--aux-b", type=int, default=4, choices=[1, 2, 3, 4])
     p.add_argument("--meas-a", type=int, default=1, choices=[1, 2, 3, 4])
     p.add_argument("--meas-b", type=int, default=3, choices=[1, 2, 3, 4])
+    add_comparability_args(p)
     return p
+
+
+def add_comparability_args(p):
+    """The two scan_io switches; shared with the tools that import
+    reflectogram() from here."""
+    p.add_argument("--native-rate", action="store_true",
+                   help="keep a capture faster than 100 kHz at its own rate "
+                        "(default: resample to 100 kHz, like every Mk1 scan)")
+    p.add_argument("--keep-responsivity", action="store_true",
+                   help="keep the GUI's R(lambda) correction (default: "
+                        "divide it back out, so all scans are raw)")
 
 
 def main():
@@ -324,6 +340,7 @@ def main():
               "Aux-Kontrast min %3.0f %%  P_meas %.4f mW"
               % (run, str(r["voa"]), r["tau_aux"] * 1e9, r["fringes"],
                  r["amp_min"] * 100, r["p_meas"]))
+    check_comparable([("Lauf %d" % r["run"], r["prov"]) for r in runs])
 
     # gemeinsame Referenz -- der staerkste Peak der ganzen Serie
     ref = max(runs, key=lambda r: r["R"].max())

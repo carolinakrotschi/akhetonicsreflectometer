@@ -5,8 +5,8 @@ lina_window.py``).
 
 WHAT IS CALIBRATED
 ------------------
-A LINEAR-variant coreDAQ capture is started by ONE trigger edge from the EXFO
-and then free-runs at its own sample rate, so every sample is tied to a TIME,
+A continuous coreDAQ capture (LINEAR or LOG frontend) is started by ONE
+trigger edge from the EXFO and then free-runs at its own sample rate, so every sample is tied to a TIME,
 not to a wavelength. Mapping those samples onto wavelengths by assuming the
 buffer spans exactly [start, stop] nm is wrong twice over:
 
@@ -185,3 +185,280 @@ def describe(cal: dict) -> str:
             f"{sweep.get('requested_start_nm', '?')}–"
             f"{sweep.get('requested_stop_nm', '?')} nm @ "
             f"{sweep.get('requested_speed_nm_s', '?')} nm/s")
+
+
+# ---------------------------------------------------------------------------
+# Aux-referenced axis — for sweep configurations that have no lambda(t) file
+# ---------------------------------------------------------------------------
+#
+# A lambda(t) calibration describes ONE configuration and is measured against a
+# tunable filter, so a sweep outside the filter's range (TOF1550: 1527-1567 nm)
+# can never get one. Those sweeps used to fall back to the linear axis, which
+# is wrong twice over (see the module docstring).
+#
+# The aux MZI answers both objections without a calibration run, because it
+# MEASURES the sweep instead of predicting it:
+#
+#   * its unwrapped fringe phase is proportional to optical frequency, so the
+#     phase says how far through the sweep — in FREQUENCY — each sample is;
+#   * its fringes exist only while the laser is moving, so where they stop is
+#     where the sweep stops. That is the crop, measured rather than assumed.
+#
+# The absolute scale comes from the commanded endpoints. That split is
+# deliberate. An earlier design took the scale from a STORED aux delay, which
+# would have been wrong: measured 2026-09-15, captures on this bench imply
+# tau_aux 20.64 ns against the 20.39 ns measured on 2026-09-01 — the aux arm
+# had been re-patched and nothing noticed. The endpoints are an instrument
+# property and cannot go stale that way, so tau_aux is computed from every
+# sweep and reported as a CHECK, never used to set the axis.
+#
+# Validated on two fibres swept over 1520-1570 nm and over 1505-1625 nm (2.4x
+# wider): the OFDR peaks agree between the two windows to under 0.04 mm on
+# 1-5 m, i.e. 0.001-0.003 %.
+
+C_VAC = 299_792_458.0        # m/s
+
+# The reference/aux MZI pair on this setup — same convention as the OFDR
+# evaluation in lina_window.py and lina/scripts/lina_ofdr_test.py.
+AUX_CHANNELS = (2, 4)
+
+# Refusal thresholds. An aux axis that cannot be trusted must fall back to the
+# linear axis and say why, rather than quietly produce a wrong one.
+AUX_MIN_FRINGES = 1000.0      # fewer than this is noise, not a sweep
+AUX_MAX_NONMONOTONIC = 0.01   # 1 %, matching the OFDR resampling guard
+AUX_MAX_NYQUIST_FRAC = 0.45   # above this the measured line is unusable
+
+# A cleanly aliased fringe CANNOT be detected from the capture alone: folding a
+# pure tone gives another pure tone, below Nyquist, with a smooth monotonic
+# phase -- every intrinsic test passes. What does catch it is the aux delay the
+# sweep implies: aliasing throws it far off the bench's known value. So a gross
+# mismatch against the stored reference is a refusal, and a small one is only a
+# warning (the bench really can be re-patched, and the axis stays usable).
+AUX_TAU_DEVIATION_WARN = 0.002
+AUX_TAU_DEVIATION_REFUSE = 0.10
+
+# Sweep-window detection: the fringe envelope, smoothed over this many samples,
+# must stay above this fraction of its median.
+#
+# Both numbers are measured, not guessed. A boxcar smear puts the detected edge
+# about half its own width past the true one, and samples of dead tail inside
+# the window are NOT harmless: the Hilbert phase of high-passed noise keeps
+# advancing, so they inject fringes that never happened. At 20001 that was
+# +5628 samples of tail and a 0.69 % error in the implied aux delay -- enough
+# to trip the staleness check on every sweep. At 2001 it is +126 samples and
+# 0.004 %.
+#
+# The threshold stays at 0.25 rather than the 0.5 that would centre the edge
+# exactly: over a 120 nm sweep the real fringe envelope varies by ~50 % end to
+# end, and at 0.5 the mask breaks up INSIDE the sweep, which costs far more
+# than a slightly late edge (measured on a 1505-1625 nm capture: 19.89 ns
+# against 20.65 ns for every other setting).
+AUX_ENVELOPE_WIN = 2001
+AUX_ENVELOPE_FRAC = 0.25
+
+# Stored aux delay — a reference for the staleness check only.
+AUX_REF_FILE = os.path.join(CAL_DIR, 'aux_mzi.json')
+
+
+class AuxAxisUnavailable(RuntimeError):
+    """The aux fringe cannot carry a wavelength axis.
+
+    Carries the reason, so a caller that falls back to the linear axis can say
+    WHY instead of silently degrading.
+    """
+
+
+def _moving_mean(x, win: int):
+    """Centred moving average in O(n).
+
+    np.convolve would be O(n*win); at 2.5 M samples and a 20 k window that is
+    5e10 operations and unusable inside a GUI worker.
+    """
+    x = np.asarray(x, dtype=float)
+    win = int(max(1, win))
+    c = np.cumsum(np.concatenate(([0.0], x)))
+    half = win // 2
+    i = np.arange(x.size)
+    lo = np.clip(i - half, 0, x.size)
+    hi = np.clip(i + half + 1, 0, x.size)
+    return (c[hi] - c[lo]) / (hi - lo)
+
+
+def aux_sweep_window(aux_ac, dc=None, win: int = AUX_ENVELOPE_WIN,
+                     frac: float = AUX_ENVELOPE_FRAC):
+    """Longest stretch of the capture where the aux is actually fringing.
+
+    Fringes exist only while the laser moves, so this is the sweep. Measured
+    on a 1505-1625 nm capture: the envelope drops by a factor ~500 within a
+    fraction of a nm at t = 24.07 s of a 25.20 s buffer — the laser had
+    finished and the buffer was still recording.
+
+    ``dc`` (the raw, un-high-passed aux level) only decides what to CALL the
+    tail: an abrupt loss of fringes with the light still there is the end of
+    the sweep, whereas losing both is the laser running out of power at a band
+    edge. The window is the same either way; the distinction goes in the note,
+    because the second case means the sweep was cut short and the commanded
+    endpoints no longer describe the cropped region.
+
+    Returns:
+        ``(lo, hi, note)`` — half-open sample range, plus that diagnosis.
+    """
+    env = _moving_mean(np.abs(aux_ac - aux_ac.mean()), win)
+    med = float(np.median(env))
+    if med <= 0:
+        raise AuxAxisUnavailable("aux interferogram is flat - no fringes at all")
+    mask = env > frac * med
+    edges = np.flatnonzero(np.diff(np.concatenate(([0], mask.view(np.int8), [0]))))
+    if edges.size < 2:
+        raise AuxAxisUnavailable("no contiguous fringing region in the capture")
+    runs = edges.reshape(-1, 2)
+    lo, hi = runs[np.argmax(runs[:, 1] - runs[:, 0])]
+    lo, hi = int(lo), int(hi)
+
+    note = ""
+    if dc is not None and hi < aux_ac.size - win:
+        dc_sweep = float(np.mean(dc[lo:hi]))
+        dc_tail = float(np.mean(dc[hi:]))
+        if dc_sweep > 0 and dc_tail > 0.5 * dc_sweep:
+            note = "tail is a parked laser (fringes stop, light stays)"
+        else:
+            note = ("tail loses light as well as fringes - the sweep may have "
+                    "been cut short at the band edge, so the axis scale is "
+                    "suspect")
+    return lo, hi, note
+
+
+def load_aux_reference(path: str = None):
+    """Stored aux delay, used only for the staleness check. None when absent."""
+    try:
+        with open(path or AUX_REF_FILE, 'r') as fh:
+            return json.load(fh)
+    except Exception:
+        return None
+
+
+def aux_wavelength_axis(traces: dict, start_nm: float, stop_nm: float,
+                        rate_hz: float, aux_channels=AUX_CHANNELS,
+                        tau_ref_s: float = None, log=print):
+    """Wavelength for every sample, from the aux fringe phase.
+
+    For sweep configurations that have no lambda(t) calibration. The aux
+    supplies the SHAPE of the axis and the crop; the commanded endpoints
+    supply the SCALE.
+
+    Args:
+        traces: ``{channel: 1-D array}`` raw capture, aux pair included.
+        start_nm / stop_nm: the range the laser was actually set to sweep (read
+            back from the instrument, not the user's request).
+        rate_hz: sample rate of the capture.
+        tau_ref_s: aux delay to check against, for callers that have one.
+            Defaults to the stored reference. This is the ONLY thing that
+            catches an aliased fringe — see AUX_TAU_DEVIATION_REFUSE — so
+            without it a sweep too fast for the sample rate is accepted and
+            silently wrong.
+
+    Returns:
+        ``(wavelengths_nm, {channel: array}, diag)`` — traces cropped to the
+        sweep, consistently with the axis.
+
+    Raises:
+        AuxAxisUnavailable: the fringe cannot carry an axis. Fall back to the
+            linear axis and report ``str(exc)``.
+    """
+    from lina.analysis.lina_ofdr import (combine_pair, highpass, aux_phase,
+                                         aux_quality)
+
+    missing = [ch for ch in aux_channels if ch not in traces]
+    if missing:
+        raise AuxAxisUnavailable(
+            "aux channels %s not in the capture (missing %s) - all four "
+            "channels must be captured in one sweep"
+            % (list(aux_channels), missing))
+    n_pts = min((len(v) for v in traces.values()), default=0)
+    if n_pts < AUX_MIN_FRINGES:
+        raise AuxAxisUnavailable("capture is only %d samples" % n_pts)
+    cut = {ch: np.asarray(v, dtype=float)[:n_pts] for ch, v in traces.items()}
+
+    def quiet(*_a, **_k):
+        pass
+
+    aux_ac = highpass(
+        combine_pair(cut, list(aux_channels), "auto", "aux", log=quiet),
+        rate_hz, 500.0)
+    lo, hi, tail_note = aux_sweep_window(aux_ac, np.abs(cut[aux_channels[0]]))
+    win_ac = aux_ac[lo:hi]
+    if win_ac.size < AUX_MIN_FRINGES:
+        raise AuxAxisUnavailable(
+            "the fringing region is only %d samples long" % win_ac.size)
+
+    f_aux, tone = aux_quality(win_ac, rate_hz)
+    if f_aux > AUX_MAX_NYQUIST_FRAC * rate_hz:
+        raise AuxAxisUnavailable(
+            "aux fringe %.1f kHz is %.0f %% of the sample rate - aliased; "
+            "sweep slower or sample faster"
+            % (f_aux / 1e3, 100 * f_aux / rate_hz))
+
+    phase = aux_phase(win_ac)
+    d = np.diff(phase)
+    rising = float(np.median(d)) >= 0
+    bad = float(np.mean(d <= 0)) if rising else float(np.mean(d >= 0))
+    if bad > AUX_MAX_NONMONOTONIC:
+        raise AuxAxisUnavailable(
+            "%.1f %% of the aux phase reverses - the fringe is not resolved"
+            % (100 * bad))
+    # Isolated noise reversals survive the 1 % guard above but would make the
+    # wavelength axis non-monotonic, which breaks plotting and any downstream
+    # interpolation. Same cumulative fix as resample_on_aux().
+    phase = (np.maximum.accumulate(phase) if rising
+             else np.minimum.accumulate(phase))
+    span = float(phase[-1] - phase[0])
+    fringes = abs(span) / (2 * np.pi)
+    if fringes < AUX_MIN_FRINGES or span == 0.0:
+        raise AuxAxisUnavailable(
+            "only %.0f aux fringes in the sweep" % fringes)
+
+    # Shape from the phase, scale from the endpoints.
+    nu_start = C_VAC / (float(start_nm) * 1e-9)
+    nu_stop = C_VAC / (float(stop_nm) * 1e-9)
+    nu = nu_start + (phase - phase[0]) / span * (nu_stop - nu_start)
+    wl_nm = C_VAC / nu * 1e9
+
+    # Every sweep measures the aux delay in passing. It is NOT used above — it
+    # is the check that this is still the bench the stored value describes.
+    tau_implied = fringes / abs(nu_stop - nu_start)
+    diag = {"fringes": fringes, "tau_aux_implied_s": tau_implied,
+            "aux_fringe_hz": f_aux, "aux_tone_fraction": tone,
+            "nonmonotonic_fraction": bad, "window": (lo, hi),
+            "n_points": int(hi - lo), "tail_note": tail_note,
+            "start_nm": float(start_nm), "stop_nm": float(stop_nm)}
+    tau_ref = tau_ref_s
+    if tau_ref is None:
+        tau_ref = (load_aux_reference() or {}).get("tau_aux_s")
+    if tau_ref:
+        dev = tau_implied / float(tau_ref) - 1.0
+        diag["tau_aux_reference_s"] = float(tau_ref)
+        diag["tau_aux_deviation"] = dev
+        if abs(dev) > AUX_TAU_DEVIATION_REFUSE:
+            raise AuxAxisUnavailable(
+                "the sweep implies an aux delay of %.3f ns against the bench's "
+                "%.3f ns (%+.0f %%) - too far off to be a re-patched arm; the "
+                "fringe is probably aliased"
+                % (tau_implied * 1e9, float(tau_ref) * 1e9, 100 * dev))
+        if abs(dev) > AUX_TAU_DEVIATION_WARN:
+            log("aux delay %.4f ns against the stored %.4f ns (%+.2f %%) - the "
+                "aux arm or the laser's range has changed since that "
+                "measurement" % (tau_implied * 1e9, float(tau_ref) * 1e9,
+                                 100 * dev))
+    if tail_note:
+        log("sweep window %d..%d of %d samples - %s"
+            % (lo, hi, n_pts, tail_note))
+    return wl_nm, {ch: v[lo:hi] for ch, v in cut.items()}, diag
+
+
+def describe_aux(diag: dict) -> str:
+    """One-line summary for a status bar / plot label."""
+    s = ("aux axis, %.0f fringes, tau_aux %.3f ns"
+         % (diag["fringes"], diag["tau_aux_implied_s"] * 1e9))
+    if "tau_aux_deviation" in diag:
+        s += " (%+.2f %% vs stored)" % (100 * diag["tau_aux_deviation"])
+    return s

@@ -35,7 +35,6 @@ Usage:
 """
 
 import argparse
-import json
 import sys
 
 import numpy as np
@@ -45,6 +44,7 @@ from scipy.signal import find_peaks
 from scipy.signal.windows import kaiser, hann, blackmanharris
 
 from process_reflectogram_aux import noise_floor
+from scan_io import describe, load_scan
 
 C = 299_792_458.0
 NG = 1.468          # SMF-28 group index near 1550 nm
@@ -54,16 +54,13 @@ STEP_M = 1e-12      # nominal trigger step: 1 pm
 # ----------------------------------------------------------------------
 def load_exfo_json(path):
     """Load one sweep; return (wavelength_m, ch1, ch2, description)."""
-    with open(path) as f:
-        doc = json.load(f)
-    if len(doc["data"]) != 1:
-        print(f"note: file contains {len(doc['data'])} entries; using entry 0",
-              file=sys.stderr)
-    d = doc["data"][0]
-    wl = np.asarray(d["Wavelength [nm]"], float) * 1e-9
-    p1 = np.asarray(d["Ch1 [mW]"], float)
-    p2 = np.asarray(d["Ch2 [mW]"], float)
-    desc = d.get("Device Description", {})
+    # scan_io: any power unit -> mW, R(lambda) undone, clamp reported.
+    # Stepped captures are one sample per wavelength step, so no rate change.
+    s = load_scan(path, target_rate_hz=None)
+    wl = s["wl_nm"] * 1e-9
+    p1, p2 = s["ch"][1], s["ch"][2]
+    desc = s["meta"]
+    print(f"detector: {describe(s['prov'])}")
 
     # cleanup: drop retrace / parked samples (laser returns to start after
     # sweep; observed as a final sample ~120 nm below the previous one).
