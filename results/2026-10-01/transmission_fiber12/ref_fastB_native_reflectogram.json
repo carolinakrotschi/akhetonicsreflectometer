@@ -1,0 +1,74 @@
+{
+  "clamp": {
+    "Ch1": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch2": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch3": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch4": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    }
+  },
+  "crop_source": "aux fringe frequency (0.010-13.011 s, f_aux 25.10 kHz, tail: parked)",
+  "cropped": [
+    2332,
+    3122741
+  ],
+  "detector": {
+    "capture_mode": "continuous",
+    "device": "coredaq-2",
+    "fraction_at_ceiling": {
+      "Ch1": 0.0,
+      "Ch2": 0.0,
+      "Ch3": 0.0,
+      "Ch4": 0.0
+    },
+    "fraction_at_floor": {
+      "Ch1": 0.0,
+      "Ch2": 0.0,
+      "Ch3": 0.0,
+      "Ch4": 0.0
+    },
+    "frontend": "LOG",
+    "generation": "mk2",
+    "log_ceiling_mw": 3.0,
+    "log_floor_mw": 1.0000000000000001e-07,
+    "sample_rate_hz": 240000,
+    "serial": "SN0002",
+    "wl_cal_applied": false
+  },
+  "detector_inferred": false,
+  "detector_label": "Mk2 LOG SN0002",
+  "dz_bin_um": 6.540735631575743,
+  "format": "npz",
+  "main_peak_m": 2.710309900297568,
+  "noise_floor_db": -78.63293497235279,
+  "pipeline_warnings": [],
+  "plot_zero_m": null,
+  "processing": {
+    "kaiser_beta": 12.0,
+    "pad_factor": 1,
+    "single": false,
+    "tau_aux_ns": 20.593,
+    "tau_aux_source": "calibrated",
+    "trim": 0.01,
+    "window": "kaiser",
+    "zmax_m": 10.000781510314308
+  },
+  "rate_hz": 240000.0,
+  "rate_hz_native": 240000.0,
+  "responsivity": "none",
+  "source": "sweep_ofdr_mk2_fast_B_1500-1630_10nms_240k_2026-10-01_11-54-55.npz",
+  "warnings": [
+    "native 240000 Hz kept -- noise floor in dB is NOT comparable with 100 kHz scans (more samples alone lower it)"
+  ],
+  "z_nyq_m": 10.000784780681055
+}
