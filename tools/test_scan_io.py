@@ -156,6 +156,29 @@ def test_crop_only_where_not_yet_cropped():
         assert np.array_equal(s2["ch"][3], cut[3])
 
 
+def test_raw_buffer_cut_before_return_slew():
+    """A raw run_sweep buffer: 9.9 s forward sweep, then a 3x faster return
+    slew (as on the 2026-10-01 Mk2 captures). The slew must be cut off."""
+    rate, n_fwd, n_ret = 100e3, 99_000, 6_000
+    rng = np.random.default_rng(1)
+    f = np.concatenate((np.full(n_fwd, 13e3), np.full(n_ret, 38e3)))
+    ph = 2 * np.pi * np.cumsum(f) / rate
+    ch = {2: 0.03 * (1 + 0.8 * np.cos(ph)), 4: 0.03 * (1 - 0.8 * np.cos(ph)),
+          1: 0.007 + 1e-4 * rng.standard_normal(ph.size),
+          3: 0.007 + 1e-4 * rng.standard_normal(ph.size)}
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "raw.npz")
+        meta = {"rate_hz": 100000, "sweep_s": 1.0, "actual_start_nm": 1520.0,
+                "actual_stop_nm": 1570.0}
+        np.savez_compressed(p, meta=json.dumps(meta),
+                            **{"ch%d" % k: v for k, v in ch.items()})
+        s = load_scan(p, **QUIET)
+        lo, hi = s["prov"]["cropped"]
+        assert lo == 0 and abs(hi - n_fwd) < 60, (lo, hi)
+        assert "return slew" in s["prov"]["crop_source"]
+        assert len(load_scan(p, crop_sweep=False, **QUIET)["ch"][2]) == ph.size
+
+
 def test_json_to_npz_keeps_unit_and_detector():
     import json_to_npz
     ch, t = _fringes(100e3, dur=0.2)

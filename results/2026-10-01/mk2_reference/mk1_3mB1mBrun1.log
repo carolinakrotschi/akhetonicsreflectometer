@@ -1,0 +1,56 @@
+logs/lina/data/02_ofdr_measurements/3mB1mB_sweep_ofdr_run1_2026-09-01_17-37-32.npz: 989,632 points x 4 channels
+detector: Mk1 LINEAR (inferred) | 100 kHz | R(lambda) none | clamp ceil 0 % floor 0 % | sweep 0.000-9.896 s
+aux (calibration) pair: Ch2/Ch4   measurement pair: Ch1/Ch3
+tau_aux = 20.4009 ns  (from the sweep: 128,143.4 fringes over the commanded 1520-1570 nm)  -> aux appears at z = 2.083 m
+balanced subtraction: g_meas 0.985..1.183, g_aux 0.859..0.982
+Aux: 125,584 fringes, 7.7 points/fringe, amplitude minimum 25 % of mean
+Span 6.156 THz (~50.3 nm), point spacing 6.35 MHz
+  RESOLUTION 16.59 um   RANGE 8.044 m   cells 484,920
+  !! no reflector beyond 8.04 m, otherwise it will alias
+
+Main peak 574.6357 mm, -3 dB width 49.8 um (window limit ~49.8 um)
+
+RMS noise floor -68.5 dB   -> dynamic range 68.5 dB (strongest peak is 0 dB by normalisation)
+
+Peaks above -45 dB:
+       0.0498 mm   -25.0 dB
+       0.2820 mm   -44.4 dB
+       3.0687 mm   -42.9 dB
+     506.2460 mm   -42.9 dB
+     506.9427 mm   -30.9 dB
+     507.6228 mm   -43.6 dB
+     525.5537 mm   -42.0 dB
+     567.7851 mm   -44.5 dB
+     570.1903 mm   -45.0 dB
+     570.8372 mm   -43.2 dB
+     571.3514 mm   -31.9 dB
+     571.6002 mm   -38.4 dB
+     571.9651 mm   -44.3 dB
+     573.2589 mm   -39.2 dB
+     573.5077 mm   -31.9 dB
+     573.9556 mm   -35.3 dB
+     574.1712 mm   -44.1 dB
+     574.4200 mm   -38.7 dB
+     574.6357 mm     0.0 dB
+     574.8347 mm   -37.4 dB
+     575.0670 mm   -43.7 dB
+     575.3324 mm   -30.0 dB
+     575.7636 mm   -27.9 dB
+     576.0124 mm   -42.4 dB
+     577.0408 mm   -43.8 dB
+     577.7043 mm   -36.8 dB
+     577.9697 mm   -31.4 dB
+     578.3844 mm   -40.4 dB
+     578.6166 mm   -44.3 dB
+    4627.9048 mm   -45.0 dB
+    4642.3524 mm   -42.1 dB
+    4643.0490 mm   -30.6 dB
+    4643.2812 mm   -36.8 dB
+    4643.7291 mm   -41.8 dB
+    4643.9613 mm   -40.8 dB
+    4644.1770 mm   -44.1 dB
+    4658.2596 mm   -44.6 dB
+
+wrote: results/2026-10-01/mk2_reference/mk1_3mB1mBrun1_reflectogram.csv
+wrote: results/2026-10-01/mk2_reference/mk1_3mB1mBrun1_reflectogram.json
+wrote: results/2026-10-01/mk2_reference/mk1_3mB1mBrun1_reflectogram.png

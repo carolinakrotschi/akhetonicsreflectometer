@@ -1,0 +1,53 @@
+logs/lina/data/02_ofdr_measurements/1mB_sweep_ofdr_run2_2026-09-01_17-06-58.npz: 989,633 points x 4 channels
+detector: Mk1 LINEAR (inferred) | 100 kHz | R(lambda) none | clamp ceil 0 % floor 0 % | sweep 0.000-9.896 s
+aux (calibration) pair: Ch2/Ch4   measurement pair: Ch1/Ch3
+tau_aux = 20.4000 ns  (from the sweep: 128,137.9 fringes over the commanded 1520-1570 nm)  -> aux appears at z = 2.083 m
+balanced subtraction: g_meas 0.985..1.183, g_aux 0.865..0.998
+Aux: 125,585 fringes, 7.7 points/fringe, amplitude minimum 17 % of mean
+  WARNING: aux contrast drops somewhere (polarization fading?). Phase unreliable there.
+Span 6.156 THz (~50.3 nm), point spacing 6.35 MHz
+  RESOLUTION 16.59 um   RANGE 8.043 m   cells 484,920
+  !! no reflector beyond 8.04 m, otherwise it will alias
+
+Main peak 574.6602 mm, -3 dB width 49.8 um (window limit ~49.8 um)
+
+RMS noise floor -66.2 dB   -> dynamic range 66.2 dB (strongest peak is 0 dB by normalisation)
+
+Peaks above -45 dB:
+       0.0498 mm   -26.5 dB
+       0.3483 mm   -44.0 dB
+       3.0685 mm   -40.1 dB
+     505.7926 mm   -43.5 dB
+     506.2238 mm   -40.9 dB
+     506.9039 mm   -26.3 dB
+     507.6005 mm   -40.6 dB
+     525.5307 mm   -25.6 dB
+     571.3429 mm   -43.6 dB
+     573.2006 mm   -40.2 dB
+     573.5489 mm   -30.6 dB
+     573.7646 mm   -30.9 dB
+     573.9636 mm   -26.7 dB
+     574.1626 mm   -41.6 dB
+     574.4280 mm   -28.8 dB
+     574.6602 mm     0.0 dB
+     574.8924 mm   -28.9 dB
+     575.3569 mm   -24.6 dB
+     575.7881 mm   -31.0 dB
+     576.1862 mm   -41.4 dB
+     577.9278 mm   -44.0 dB
+    1613.9119 mm   -28.3 dB
+    1614.1772 mm   -43.2 dB
+    1614.4095 mm   -40.8 dB
+    1614.8407 mm   -36.7 dB
+    1615.3217 mm   -42.4 dB
+    1615.5208 mm   -21.5 dB
+    1615.8691 mm   -37.8 dB
+    1616.2174 mm   -35.6 dB
+    1616.4330 mm   -39.3 dB
+    1616.6487 mm   -43.4 dB
+    1617.2126 mm   -32.1 dB
+    2083.0314 mm   -42.9 dB
+
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun2_reflectogram.csv
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun2_reflectogram.json
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun2_reflectogram.png

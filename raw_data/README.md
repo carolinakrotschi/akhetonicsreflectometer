@@ -176,3 +176,18 @@ Befund ueber alle Kanaele: ausser der Facettenreflexion selbst kommt
 `tools/check_ligentec_channel.py` (Vorhersagefenster + zwei Kontrollen)
 und `tools/compare_ligentec_channels.py` (Zentrierung auf Facette A +
 Nullverteilung).
+
+## 2026-10-01 -- erste Mk2-Messung (2m07-PM-Faser)
+
+Rohpuffer aus `lina_sweep_test` (ganzer Armierungspuffer, 1 050 000 Samples
+x 4 Kanaele in mW, `meta` mit `detector`). Nach dem Sweep (9.89 s) faehrt der
+Laser im Puffer zurueck -- `tools/scan_io.py` schneidet das ueber die
+Aux-Frequenz ab. Auswertung: `logs/2026-10-01.md`,
+`results/2026-10-01/mk2_reference/`.
+
+| Datei | Detektor | Zustand | Befund |
+|---|---|---|---|
+| `sweep_ofdr_mk2_2m_run{1,3,5,7,8,9}_2026-10-01_*.npz` | Mk2 LOG SN0002, 100 kHz, Klemme 0 % | 2m07-PM-Faser (dieselbe wie 2026-09-15) am Messport, Ende offen | Stecker 2710.1 mm (−20.6 dB), Ende = drei Peaks 4806.2 / 4807.7 / 4809.4 mm; L = 2.0976 m (n_g 1.468) |
+| `sweep_ofdr_mk2_nofiber_run{1,2,3}_2026-10-01_*.npz` | dito | ohne Faser, offener Stecker | Stecker 2709.98 mm (0 dB), 3. Harmonische gefaltet bei 7.946 m (−33 dB) |
+| `gui_response_sweep_2026-10-01_10-49-52.npz` | **kein Header** | GUI-Test: beschnitten, λ-Achse, R(λ)-korrigiert | keine Rohdaten, nicht ausgewertet |
+

@@ -1,0 +1,47 @@
+logs/lina/data/02_ofdr_measurements/1mB_sweep_ofdr_run1_2026-09-01_17-03-35.npz: 989,615 points x 4 channels
+detector: Mk1 LINEAR (inferred) | 100 kHz | R(lambda) none | clamp ceil 0 % floor 0 % | sweep 0.000-9.896 s
+aux (calibration) pair: Ch2/Ch4   measurement pair: Ch1/Ch3
+tau_aux = 20.4011 ns  (from the sweep: 128,144.9 fringes over the commanded 1520-1570 nm)  -> aux appears at z = 2.083 m
+balanced subtraction: g_meas 0.985..1.183, g_aux 0.862..0.999
+Aux: 125,587 fringes, 7.7 points/fringe, amplitude minimum 15 % of mean
+  WARNING: aux contrast drops somewhere (polarization fading?). Phase unreliable there.
+Span 6.156 THz (~50.3 nm), point spacing 6.35 MHz
+  RESOLUTION 16.59 um   RANGE 8.043 m   cells 484,911
+  !! no reflector beyond 8.04 m, otherwise it will alias
+
+Main peak 574.6484 mm, -3 dB width 49.8 um (window limit ~49.8 um)
+
+RMS noise floor -66.8 dB   -> dynamic range 66.8 dB (strongest peak is 0 dB by normalisation)
+
+Peaks above -45 dB:
+       0.0498 mm   -26.3 dB
+       0.2986 mm   -43.2 dB
+       3.0686 mm   -40.1 dB
+     506.2260 mm   -41.8 dB
+     506.9227 mm   -27.7 dB
+     507.6194 mm   -40.4 dB
+     525.5502 mm   -25.3 dB
+     573.1224 mm   -41.9 dB
+     573.5371 mm   -30.0 dB
+     573.7527 mm   -32.7 dB
+     573.9517 mm   -25.4 dB
+     574.3830 mm   -41.9 dB
+     574.6484 mm     0.0 dB
+     574.8972 mm   -42.9 dB
+     575.3451 mm   -24.7 dB
+     575.5441 mm   -31.8 dB
+     575.7598 mm   -30.4 dB
+     576.1744 mm   -41.9 dB
+    1613.9055 mm   -32.3 dB
+    1614.3699 mm   -43.7 dB
+    1614.8178 mm   -39.9 dB
+    1615.5144 mm   -23.7 dB
+    1615.8462 mm   -38.4 dB
+    1616.2111 mm   -38.2 dB
+    1616.6423 mm   -44.7 dB
+    1617.2063 mm   -34.0 dB
+    2083.1419 mm   -43.7 dB
+
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun1_reflectogram.csv
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun1_reflectogram.json
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun1_reflectogram.png

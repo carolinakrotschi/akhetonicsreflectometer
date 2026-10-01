@@ -1,0 +1,62 @@
+logs/lina/data/02_ofdr_measurements/1mB_sweep_ofdr_run3_2026-09-01_17-07-33.npz: 989,637 points x 4 channels
+detector: Mk1 LINEAR (inferred) | 100 kHz | R(lambda) none | clamp ceil 0 % floor 0 % | sweep 0.000-9.896 s
+aux (calibration) pair: Ch2/Ch4   measurement pair: Ch1/Ch3
+tau_aux = 20.4009 ns  (from the sweep: 128,143.8 fringes over the commanded 1520-1570 nm)  -> aux appears at z = 2.083 m
+balanced subtraction: g_meas 0.985..1.183, g_aux 0.864..0.994
+Aux: 125,585 fringes, 7.7 points/fringe, amplitude minimum 18 % of mean
+  WARNING: aux contrast drops somewhere (polarization fading?). Phase unreliable there.
+Span 6.156 THz (~50.3 nm), point spacing 6.35 MHz
+  RESOLUTION 16.59 um   RANGE 8.044 m   cells 484,922
+  !! no reflector beyond 8.04 m, otherwise it will alias
+
+Main peak 574.6858 mm, -3 dB width 49.8 um (window limit ~49.8 um)
+
+RMS noise floor -64.7 dB   -> dynamic range 64.7 dB (strongest peak is 0 dB by normalisation)
+
+Peaks above -45 dB:
+       0.0498 mm   -23.0 dB
+       3.0687 mm   -38.8 dB
+     505.8151 mm   -45.0 dB
+     506.2463 mm   -39.6 dB
+     506.9430 mm   -24.6 dB
+     507.6397 mm   -40.3 dB
+     508.0544 mm   -43.6 dB
+     525.5706 mm   -25.1 dB
+     526.2507 mm   -44.3 dB
+     571.3020 mm   -41.8 dB
+     571.6006 mm   -43.5 dB
+     572.6953 mm   -42.6 dB
+     573.1598 mm   -38.1 dB
+     573.5579 mm   -30.7 dB
+     573.9891 mm   -22.2 dB
+     574.2214 mm   -31.5 dB
+     574.4370 mm   -25.6 dB
+     574.6858 mm     0.0 dB
+     574.9512 mm   -20.3 dB
+     575.1503 mm   -23.6 dB
+     575.3659 mm   -21.3 dB
+     575.5649 mm   -23.8 dB
+     575.7972 mm   -24.0 dB
+     576.0460 mm   -32.2 dB
+     576.2782 mm   -34.3 dB
+     576.6597 mm   -37.3 dB
+     576.8919 mm   -40.9 dB
+     577.1905 mm   -43.1 dB
+     577.5886 mm   -44.5 dB
+     578.2023 mm   -41.6 dB
+    1613.9837 mm   -29.6 dB
+    1614.2325 mm   -42.9 dB
+    1614.4979 mm   -38.0 dB
+    1614.8628 mm   -39.7 dB
+    1615.1946 mm   -43.7 dB
+    1615.5926 mm   -22.7 dB
+    1615.8912 mm   -36.6 dB
+    1616.2396 mm   -34.5 dB
+    1616.4552 mm   -37.9 dB
+    1616.7040 mm   -41.8 dB
+    1617.2846 mm   -32.9 dB
+    2083.1241 mm   -41.0 dB
+
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun3_reflectogram.csv
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun3_reflectogram.json
+wrote: results/2026-10-01/mk2_reference/mk1_1mBrun3_reflectogram.png

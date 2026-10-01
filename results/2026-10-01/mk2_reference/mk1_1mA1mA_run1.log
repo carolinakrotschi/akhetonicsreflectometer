@@ -1,0 +1,51 @@
+logs/lina/data/02_ofdr_measurements/1mA_sweep_ofdr_1mA_run1_2026-09-01_17-13-23.npz: 989,642 points x 4 channels
+detector: Mk1 LINEAR (inferred) | 100 kHz | R(lambda) none | clamp ceil 0 % floor 0 % | sweep 0.000-9.896 s
+aux (calibration) pair: Ch2/Ch4   measurement pair: Ch1/Ch3
+tau_aux = 20.4018 ns  (from the sweep: 128,149.1 fringes over the commanded 1520-1570 nm)  -> aux appears at z = 2.083 m
+balanced subtraction: g_meas 0.985..1.183, g_aux 0.863..0.994
+Aux: 125,594 fringes, 7.7 points/fringe, amplitude minimum 27 % of mean
+Span 6.156 THz (~50.3 nm), point spacing 6.35 MHz
+  RESOLUTION 16.59 um   RANGE 8.043 m   cells 484,925
+  !! no reflector beyond 8.04 m, otherwise it will alias
+
+Main peak 574.6338 mm, -3 dB width 49.8 um (window limit ~49.8 um)
+
+RMS noise floor -65.8 dB   -> dynamic range 65.8 dB (strongest peak is 0 dB by normalisation)
+
+Peaks above -45 dB:
+       0.0498 mm   -23.9 dB
+       0.2488 mm   -40.7 dB
+       3.0686 mm   -40.0 dB
+     505.8317 mm   -44.5 dB
+     506.2629 mm   -40.4 dB
+     506.9596 mm   -25.5 dB
+     507.6396 mm   -42.3 dB
+     525.5700 mm   -26.8 dB
+     526.2666 mm   -44.0 dB
+     573.2571 mm   -43.3 dB
+     573.5225 mm   -35.8 dB
+     573.7547 mm   -39.9 dB
+     573.9537 mm   -32.5 dB
+     574.3684 mm   -41.5 dB
+     574.6338 mm     0.0 dB
+     574.8328 mm   -42.0 dB
+     575.3304 mm   -24.8 dB
+     575.5295 mm   -32.2 dB
+     575.7451 mm   -31.7 dB
+     576.0105 mm   -40.3 dB
+    1630.5010 mm   -45.0 dB
+    1630.9488 mm   -44.3 dB
+    1631.1976 mm   -17.8 dB
+    1631.8777 mm   -30.5 dB
+    1632.0767 mm   -36.8 dB
+    1632.3090 mm   -35.3 dB
+    1632.5578 mm   -43.9 dB
+    1632.9227 mm   -39.2 dB
+    1633.2212 mm   -42.1 dB
+    1633.6691 mm   -40.5 dB
+    1634.4818 mm   -36.3 dB
+    2083.2051 mm   -44.8 dB
+
+wrote: results/2026-10-01/mk2_reference/mk1_1mA1mA_run1_reflectogram.csv
+wrote: results/2026-10-01/mk2_reference/mk1_1mA1mA_run1_reflectogram.json
+wrote: results/2026-10-01/mk2_reference/mk1_1mA1mA_run1_reflectogram.png

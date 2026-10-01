@@ -1,0 +1,52 @@
+{
+  "clamp": {
+    "Ch1": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch2": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch3": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch4": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    }
+  },
+  "crop_source": "aux fringe frequency (0.000-9.896 s, f_aux 12.93 kHz, tail: parked)",
+  "cropped": [
+    0,
+    989642
+  ],
+  "detector": {
+    "frontend": "LINEAR",
+    "generation": "mk1"
+  },
+  "detector_inferred": true,
+  "detector_label": "Mk1 LINEAR (inferred)",
+  "dz_bin_um": 16.586837066448393,
+  "format": "npz",
+  "main_peak_m": 0.5746337908319922,
+  "noise_floor_db": -65.84201885351399,
+  "pipeline_warnings": [],
+  "processing": {
+    "kaiser_beta": 12.0,
+    "pad_factor": 1,
+    "single": false,
+    "tau_aux_ns": 20.40177811493418,
+    "tau_aux_source": "from the sweep: 128,149.1 fringes over the commanded 1520-1570 nm",
+    "trim": 0.01,
+    "window": "kaiser",
+    "zmax_m": 8.04336367103117
+  },
+  "rate_hz": 100000.0,
+  "rate_hz_native": 100000.0,
+  "responsivity": "none",
+  "source": "1mA_sweep_ofdr_1mA_run1_2026-09-01_17-13-23.npz",
+  "warnings": [],
+  "z_nyq_m": 8.04336367103117
+}

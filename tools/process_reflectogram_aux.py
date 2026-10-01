@@ -199,6 +199,12 @@ def build_argparser():
     p.add_argument("--keep-responsivity", action="store_true",
                    help="keep the GUI's R(lambda) correction. Default divides "
                         "it back out, so all scans are raw like the Mk1 ones")
+    p.add_argument("--zero-m", type=float, default=None,
+                   help="put 0 of the PLOT axis here (absolute m), e.g. the "
+                        "connector reflex, so a fibre end reads as its length. "
+                        "The CSV stays absolute; a top axis shows absolute z")
+    p.add_argument("--zero-label", default="connector",
+                   help="name of the --zero-m point on the axis label")
     p.add_argument("--out", default=None)
     return p
 
@@ -257,15 +263,6 @@ def main():
 def process(a):
     warnings = []
 
-    if a.tau_aux_ns is not None:
-        tau_aux = a.tau_aux_ns * 1e-9
-        src = "calibrated"
-    elif a.dl is not None:
-        tau_aux = NG * a.dl / C
-        src = f"estimated from dL = {a.dl} m"
-    else:
-        sys.exit("specify --tau-aux-ns or --dl")
-
     ch1_, ch2_, ch3_, ch4_, meta = load(
         a.scan,
         undo_responsivity=not getattr(a, "keep_responsivity", False),
@@ -277,6 +274,30 @@ def process(a):
     chans = {1: ch1_, 2: ch2_, 3: ch3_, 4: ch4_}
     ch1, ch2 = chans[a.aux_a], chans[a.aux_b]
     ch3, ch4 = chans[a.meas_a], chans[a.meas_b]
+
+    if a.tau_aux_ns is not None:
+        tau_aux = a.tau_aux_ns * 1e-9
+        src = "calibrated"
+    elif a.dl is not None:
+        tau_aux = NG * a.dl / C
+        src = f"estimated from dL = {a.dl} m"
+    elif ("actual_start_nm" in meta and "actual_stop_nm" in meta
+          and str(prov.get("crop_source", "")).startswith("aux")):
+        # The buffer was cut to the forward sweep (scan_io.sweep_window), so
+        # the aux fringes counted over it span exactly the commanded range:
+        # tau_aux = fringes / optical-frequency span. Same scaling as
+        # lina_wl_cal.aux_wavelength_axis; good to the endpoint accuracy of
+        # the EXFO (~20 pm on 50 nm, i.e. ~0.04 %).
+        aux_full, _ = balanced(ch1, ch2)
+        phi = np.unwrap(np.angle(analytic(aux_full - aux_full.mean())))
+        fr = abs(phi[-1] - phi[0]) / (2 * np.pi)
+        span = abs(C / (meta["actual_start_nm"] * 1e-9)
+                   - C / (meta["actual_stop_nm"] * 1e-9))
+        tau_aux = fr / span
+        src = (f"from the sweep: {fr:,.1f} fringes over the commanded "
+               f"{meta['actual_start_nm']:g}-{meta['actual_stop_nm']:g} nm")
+    else:
+        sys.exit("specify --tau-aux-ns or --dl")
     n = len(ch1)
     print(f"{a.scan}: {n:,} points x 4 channels")
     print(f"detector: {describe(prov)}")
@@ -437,6 +458,7 @@ def process(a):
                        "pad_factor": a.pad_factor, "trim": a.trim,
                        "single": bool(a.single), "tau_aux_ns": tau_aux * 1e9,
                        "tau_aux_source": src, "zmax_m": float(zmax)},
+        "plot_zero_m": getattr(a, "zero_m", None),
         "noise_floor_db": float(nf), "main_peak_m": float(z[i]),
         "dz_bin_um": float(dz_bin * 1e6), "z_nyq_m": float(z_nyq),
         "pipeline_warnings": warnings})
@@ -446,14 +468,27 @@ def process(a):
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        # --zero-m only moves the PLOT axis (e.g. to the connector, so a
+        # fibre end reads as the fibre length); the CSV stays absolute.
+        z0 = getattr(a, "zero_m", None) or 0.0
         fig, ax = plt.subplots(figsize=(11, 5))
-        ax.plot(z[keep], db[keep], lw=0.6)
+        ax.plot(z[keep] - z0, db[keep], lw=0.6)
         ax.axhline(nf, color="darkviolet", ls="--", lw=1.1, zorder=4)
         ax.annotate(f"RMS noise floor {nf:.1f} dB  (dynamic range {-nf:.1f} dB)",
-                    (z[keep][-1], nf), fontsize=8.5, ha="right", va="bottom",
+                    (z[keep][-1] - z0, nf), fontsize=8.5, ha="right", va="bottom",
                     color="darkviolet",
                     bbox=dict(fc="white", ec="none", alpha=.75, pad=1.0))
-        ax.set_xlabel("Distance (m, one-way / reflection convention)")
+        if z0:
+            ax.axvline(0.0, color="crimson", lw=0.8, ls=":")
+            ax.set_xlabel(f"Distance from {getattr(a, 'zero_label', 'zero')} "
+                          f"(m, one-way / reflection convention; "
+                          f"0 = {z0:.5f} m absolute)")
+            top = ax.secondary_xaxis("top", functions=(lambda x: x + z0,
+                                                       lambda x: x - z0))
+            top.set_xlabel("absolute distance (m)", fontsize=8)
+            top.tick_params(labelsize=7)
+        else:
+            ax.set_xlabel("Distance (m, one-way / reflection convention)")
         ax.set_ylabel("Amplitude (dB rel. maximum)")
         ax.set_title(f"{a.scan} | aux-referenced, {a.window}, "
                      f"dz {dz_bin*1e6:.1f} um, Nyquist {z_nyq:.2f} m\n"

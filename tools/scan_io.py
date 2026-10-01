@@ -190,8 +190,61 @@ def _resample(ch, wl, rate, target):
 
 
 # --------------------------------------------------------------------- main
+AUX_PAIR = (2, 4)            # aux MZI channels (HANDOVER: Ch2/Ch4)
+# Sweep = where the aux fringe frequency stays within this fraction of its
+# median. Measured 2026-10-01 on Mk2 buffers: 12.6-13.6 kHz during the sweep,
+# 35-40 kHz on the return slew, ~0.4 kHz when parked (Mk1, 09-01).
+SWEEP_FREQ_TOL = 0.35
+SWEEP_SMOOTH = 2001          # samples; coarse window, edges refined after
+
+
+def sweep_window(ch, rate, aux=AUX_PAIR):
+    """(lo, hi, note): the part of a raw buffer where the laser sweeps forward.
+
+    From the aux fringe FREQUENCY, not its envelope: on the Mk2 captures the
+    return slew still fringes with half the envelope, so an envelope threshold
+    keeps it. The frequency jumps by ~3x there and drops to ~0 when parked.
+    """
+    from scipy.ndimage import uniform_filter1d
+    a = ch[aux[0]] - ch[aux[1]]
+    a = a - uniform_filter1d(a, 401)
+    X = np.fft.fft(a)
+    n = a.size
+    X[n // 2 + 1:] = 0
+    X[1:n // 2] *= 2
+    phi = np.unwrap(np.angle(np.fft.ifft(X)))
+    f = np.abs(uniform_filter1d(np.gradient(phi), SWEEP_SMOOTH)) * rate / (2 * np.pi)
+    f0 = float(np.median(f[n // 4: 3 * n // 4]))
+    ok = np.abs(f - f0) < SWEEP_FREQ_TOL * f0
+    edges = np.flatnonzero(np.diff(np.concatenate(([0], ok.view(np.int8), [0]))))
+    runs = edges.reshape(-1, 2)
+    lo, hi = (int(v) for v in runs[np.argmax(runs[:, 1] - runs[:, 0])])
+    # Refine each edge on a 0.5 ms scale: the sweep ends where the fringe
+    # frequency leaves +-50 % of its median -- a collapse when the laser stops
+    # (Mk2 captures: it dips to ~5 kHz before the return slew) or a jump when
+    # the slew starts directly. The tuning ripple inside the sweep stays
+    # within ~+-25 %. The coarse 20 ms window
+    # alone would put the edge ~10 ms off -- ~130 fringes, i.e. 0.1 % of the
+    # aux delay when that is scaled from the commanded endpoints.
+    fine = np.abs(uniform_filter1d(np.gradient(phi), 51)) * rate / (2 * np.pi)
+    low = np.abs(fine - f0) > 0.5 * f0
+    if hi < n:
+        a0 = max(hi - SWEEP_SMOOTH, 0)
+        k = np.flatnonzero(low[a0:hi + SWEEP_SMOOTH])
+        hi = a0 + int(k[0]) if k.size else hi - SWEEP_SMOOTH // 2
+    if lo > 0:
+        b1 = min(lo + SWEEP_SMOOTH, n)
+        k = np.flatnonzero(low[max(lo - SWEEP_SMOOTH, 0):b1])
+        lo = max(lo - SWEEP_SMOOTH, 0) + int(k[-1]) + 1 if k.size else lo + SWEEP_SMOOTH // 2
+    tail = f[hi:]
+    what = ("tail: return slew" if tail.size and np.median(tail) > 1.5 * f0
+            else "tail: parked" if tail.size else "no tail")
+    return lo, hi, "%.3f-%.3f s, f_aux %.2f kHz, %s" % (
+        lo / rate, hi / rate, f0 / 1e3, what)
+
+
 def load_scan(path, *, undo_responsivity=True, target_rate_hz=REFERENCE_RATE_HZ,
-              log=print):
+              crop_sweep=True, log=print):
     """Read any raw scan (.json, .npz from json_to_npz, Lina recorder, sim).
 
     Args:
@@ -201,6 +254,8 @@ def load_scan(path, *, undo_responsivity=True, target_rate_hz=REFERENCE_RATE_HZ,
             100 kHz, the rate of every Mk1 scan). None keeps the native rate.
             A capture at or below the target, or of unknown rate, is never
             touched.
+        crop_sweep: cut a raw run_sweep buffer (no axis, no crop) to the
+            forward sweep, found from the aux fringe frequency (sweep_window).
 
     Returns dict:
         ch     {1..4: float64 array, mW}
@@ -263,6 +318,18 @@ def load_scan(path, *, undo_responsivity=True, target_rate_hz=REFERENCE_RATE_HZ,
         lo, hi = int(crop[0]), int(crop[1])
         ch = {n: a[lo:hi] for n, a in ch.items()}
         prov["cropped"] = [lo, hi]
+        prov["crop_source"] = "meta crop"
+    elif (crop_sweep and wl is None and "sweep_s" in meta and "truth_z" not in meta
+          and all(n in ch for n in AUX_PAIR)):
+        # A raw lina_sweep_test / run_sweep buffer: the whole armed window,
+        # no axis, no crop. Since the Mk2 change the EXFO's return slew lands
+        # INSIDE that window (fast fringes, 35-40 kHz, after ~9.9 s of a 10 s
+        # sweep) -- and a Hilbert phase cannot tell backward from forward, so
+        # left in, it would be read as more sweep.
+        lo, hi, note = sweep_window(ch, rate_of(meta) or REFERENCE_RATE_HZ)
+        ch = {n: a[lo:hi] for n, a in ch.items()}
+        prov["cropped"] = [lo, hi]
+        prov["crop_source"] = "aux fringe frequency (%s)" % note
 
     # -- detector
     det, inferred = detector_of(meta)
@@ -346,6 +413,8 @@ def describe(prov):
         prov.get("detector_label", "?"),
         ("%g kHz" % (rate / 1e3)) if rate else "rate ?",
         prov.get("responsivity", "?"), 100 * worst[0], 100 * worst[1])
+    if prov.get("crop_source", "").startswith("aux"):
+        s += " | sweep %s" % prov["crop_source"][len("aux fringe frequency ("):-1].split(",")[0]
     if prov.get("resampled"):
         s += " | resampled " + prov["resampled"]
     return s

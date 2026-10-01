@@ -1,0 +1,36 @@
+logs/lina/data/02_ofdr_measurements/nofiber_sweep_ofdr_run1_2026-09-01_17-16-56.npz: 989,633 points x 4 channels
+detector: Mk1 LINEAR (inferred) | 100 kHz | R(lambda) none | clamp ceil 0 % floor 0 % | sweep 0.000-9.896 s
+aux (calibration) pair: Ch2/Ch4   measurement pair: Ch1/Ch3
+tau_aux = 20.4028 ns  (from the sweep: 128,155.3 fringes over the commanded 1520-1570 nm)  -> aux appears at z = 2.083 m
+balanced subtraction: g_meas 0.985..1.183, g_aux 0.865..0.993
+Aux: 125,595 fringes, 7.7 points/fringe, amplitude minimum 28 % of mean
+Span 6.156 THz (~50.3 nm), point spacing 6.35 MHz
+  RESOLUTION 16.59 um   RANGE 8.044 m   cells 484,920
+  !! no reflector beyond 8.04 m, otherwise it will alias
+
+Main peak 574.6228 mm, -3 dB width 49.8 um (window limit ~49.8 um)
+
+RMS noise floor -68.7 dB   -> dynamic range 68.7 dB (strongest peak is 0 dB by normalisation)
+
+Peaks above -45 dB:
+       0.0332 mm   -31.4 dB
+       3.0687 mm   -42.3 dB
+     506.9460 mm   -30.5 dB
+     525.5737 mm   -31.0 dB
+     573.9427 mm   -44.0 dB
+     574.6228 mm     0.0 dB
+     575.3195 mm   -27.7 dB
+     575.5185 mm   -33.9 dB
+     575.7507 mm   -33.0 dB
+     576.1488 mm   -43.3 dB
+     582.3028 mm   -39.7 dB
+     582.6511 mm   -42.0 dB
+     582.8502 mm   -44.2 dB
+     583.1653 mm   -42.7 dB
+     583.8952 mm   -44.9 dB
+    1505.6106 mm   -44.9 dB
+    2654.8893 mm   -44.6 dB
+
+wrote: results/2026-10-01/mk2_reference/mk1_nofiberrun1_reflectogram.csv
+wrote: results/2026-10-01/mk2_reference/mk1_nofiberrun1_reflectogram.json
+wrote: results/2026-10-01/mk2_reference/mk1_nofiberrun1_reflectogram.png

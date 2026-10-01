@@ -1,0 +1,72 @@
+{
+  "clamp": {
+    "Ch1": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch2": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch3": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    },
+    "Ch4": {
+      "ceiling": 0.0,
+      "floor": 0.0
+    }
+  },
+  "crop_source": "aux fringe frequency (0.000-9.890 s, f_aux 13.05 kHz, tail: return slew)",
+  "cropped": [
+    0,
+    989008
+  ],
+  "detector": {
+    "capture_mode": "continuous",
+    "device": "coredaq-2",
+    "fraction_at_ceiling": {
+      "Ch1": 0.0,
+      "Ch2": 0.0,
+      "Ch3": 0.0,
+      "Ch4": 0.0
+    },
+    "fraction_at_floor": {
+      "Ch1": 0.0,
+      "Ch2": 0.0,
+      "Ch3": 0.0,
+      "Ch4": 0.0
+    },
+    "frontend": "LOG",
+    "generation": "mk2",
+    "log_ceiling_mw": 3.0,
+    "log_floor_mw": 1.0000000000000001e-07,
+    "sample_rate_hz": 100000,
+    "serial": "SN0002",
+    "wl_cal_applied": false
+  },
+  "detector_inferred": false,
+  "detector_label": "Mk2 LOG SN0002",
+  "dz_bin_um": 16.586459384942035,
+  "format": "npz",
+  "main_peak_m": 0.5295387559721729,
+  "noise_floor_db": -54.2043159849854,
+  "pipeline_warnings": [],
+  "plot_zero_m": 2.70998,
+  "processing": {
+    "kaiser_beta": 12.0,
+    "pad_factor": 1,
+    "single": false,
+    "tau_aux_ns": 20.590876288495043,
+    "tau_aux_source": "from the sweep: 129,336.9 fringes over the commanded 1520-1570 nm",
+    "trim": 0.01,
+    "window": "kaiser",
+    "zmax_m": 8.038022135146859
+  },
+  "rate_hz": 100000.0,
+  "rate_hz_native": 100000.0,
+  "responsivity": "none",
+  "source": "sweep_ofdr_mk2_2m_run5_2026-10-01_10-28-27.npz",
+  "warnings": [],
+  "z_nyq_m": 8.038022135146857
+}

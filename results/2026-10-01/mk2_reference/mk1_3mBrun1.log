@@ -1,0 +1,42 @@
+logs/lina/data/02_ofdr_measurements/3mB_sweep_ofdr_run1_2026-09-01_17-21-13.npz: 989,632 points x 4 channels
+detector: Mk1 LINEAR (inferred) | 100 kHz | R(lambda) none | clamp ceil 0 % floor 0 % | sweep 0.000-9.896 s
+aux (calibration) pair: Ch2/Ch4   measurement pair: Ch1/Ch3
+tau_aux = 20.4005 ns  (from the sweep: 128,140.8 fringes over the commanded 1520-1570 nm)  -> aux appears at z = 2.083 m
+balanced subtraction: g_meas 0.985..1.183, g_aux 0.864..0.998
+Aux: 125,585 fringes, 7.7 points/fringe, amplitude minimum 27 % of mean
+Span 6.156 THz (~50.3 nm), point spacing 6.35 MHz
+  RESOLUTION 16.59 um   RANGE 8.043 m   cells 484,919
+  !! no reflector beyond 8.04 m, otherwise it will alias
+
+Main peak 574.6539 mm, -3 dB width 66.3 um (window limit ~49.8 um)
+
+RMS noise floor -67.7 dB   -> dynamic range 67.7 dB (strongest peak is 0 dB by normalisation)
+
+Peaks above -45 dB:
+       0.0498 mm   -30.5 dB
+       3.0686 mm   -41.0 dB
+     506.2660 mm   -42.7 dB
+     506.9461 mm   -28.6 dB
+     507.6428 mm   -41.5 dB
+     525.5732 mm   -27.7 dB
+     573.2772 mm   -38.5 dB
+     573.7251 mm   -43.3 dB
+     573.9573 mm   -39.7 dB
+     574.4549 mm   -34.0 dB
+     574.6539 mm     0.0 dB
+     574.8696 mm   -34.5 dB
+     575.3340 mm   -30.1 dB
+     575.5496 mm   -36.3 dB
+     575.7652 mm   -36.3 dB
+     576.0472 mm   -37.2 dB
+    1505.3461 mm   -44.7 dB
+    3603.9401 mm   -30.1 dB
+    3604.6368 mm   -44.9 dB
+    3607.0585 mm   -33.4 dB
+    3607.3239 mm   -37.0 dB
+    3607.7054 mm   -41.2 dB
+    3608.1698 mm   -43.8 dB
+
+wrote: results/2026-10-01/mk2_reference/mk1_3mBrun1_reflectogram.csv
+wrote: results/2026-10-01/mk2_reference/mk1_3mBrun1_reflectogram.json
+wrote: results/2026-10-01/mk2_reference/mk1_3mBrun1_reflectogram.png
