@@ -3,3 +3,5 @@ __pycache__/
 # Grosse Baugruppen-/Box-STEPs (30-45 MB) werden von fiberbox.py neu erzeugt
 step/fiberbox*.step
 step/box_print.step
+# Explorer-Kopien nie einchecken
+* - Copy*
