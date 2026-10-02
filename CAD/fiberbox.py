@@ -52,9 +52,10 @@ PASS_END = 10.0       # Abstand zur Front-/Rueckwand
 PASS_SEG = 35.0       # max. Fensterlaenge zwischen zwei Stegen (Bruecke beim Druck)
 PASS_POST = 3.0       # Stegbreite
 
-# FC-Kupplung (gemessen): Flansch 12.6 x 4 mm, Haelse Ø8.1 x 5.5 mm je Seite
-FC_FLANGE = 12.6
-FC_POCKET = 13.2      # 0.3 Spiel je Seite
+# FC-Kupplung: Flansch quadratisch 15 x 15 (+-0.5, Zeichnung), 4 mm dick (gemessen),
+# Haelse Ø8.1 x 5.5 mm je Seite (gemessen). 13.2 war im Probedruck zu schmal; 17 auf Wunsch.
+FC_FLANGE = 15.0
+FC_POCKET = 17.0      # Schlitzbreite (Carolina)
 FLANGE_T = 4.0
 
 # Wand-Kupplung: Flansch sitzt IN der Wand (Schlitz, von oben eingesteckt), aussen nur
@@ -68,20 +69,20 @@ MOUNT_HALF = FC_POCKET / 2 + 2.0   # Verdickung halbe Breite
 # Connector-Halter (Modul, stapelbar auf 2 Stiften), 1 Turm, 3 Kupplungen pro Ebene
 N_HOLDERS = 3         # Ebenen pro Turm
 N_HOLDER_STACKS = 1
-HOLDER_PITCH = 17.0
+HOLDER_PITCH = 20.0
 HOLDER_PLATE_T = 2.0
 SLOT_T = FLANGE_T + 0.4
 SLOT_WALL = 1.2       # duenn: Ueberwurfmutter muss weit genug auf den 5.5-mm-Hals
 MOUNT_T = MOUNT_LIP + SLOT_T + SLOT_WALL       # Wanddicke an der Kupplung (ab Aussenseite)
 NECK_W = 10.5         # U-Kerbe: Platz fuer gruene Schutzkappe / Mutter (Hals Ø8.1)
 HOLDER_W = 24.0       # X
-HOLDER_D = 72.0       # Y
+HOLDER_D = 78.0       # Y
 HOLDER_SLEEVE_YS = (-20.0, 0.0, 20.0)
-HOLDER_PINS = ((0.0, -31.0), (0.0, 31.0))      # an den Enden, nicht im Weg der Stecker
+HOLDER_PINS = ((0.0, -34.0), (0.0, 34.0))      # an den Enden, nicht im Weg der Stecker
 HOLDER_PIN_D = 5.0
 HOLDER_PIN_CLR = 0.6
 HOLDER_BOSS_D = 9.0
-HOLDER_ZONE_D = 74.0
+HOLDER_ZONE_D = 80.0
 HOLDER_BACK_GAP = 14.5  # Luft hinter dem hinteren Turm: Wand-Kupplungen haengen nicht ueber den Halter-Steckern
 
 # Schiebedeckel
