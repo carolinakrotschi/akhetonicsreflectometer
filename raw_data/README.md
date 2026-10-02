@@ -191,3 +191,17 @@ Aux-Frequenz ab. Auswertung: `logs/2026-10-01.md`,
 | `sweep_ofdr_mk2_nofiber_run{1,2,3}_2026-10-01_*.npz` | dito | ohne Faser, offener Stecker | Stecker 2709.98 mm (0 dB), 3. Harmonische gefaltet bei 7.946 m (−33 dB) |
 | `gui_response_sweep_2026-10-01_10-49-52.npz` | **kein Header** | GUI-Test: beschnitten, λ-Achse, R(λ)-korrigiert | keine Rohdaten, nicht ausgewertet |
 
+
+## 2026-10-02 -- ohne 20-dB-Koppler, VOA im LO-Arm gegen 2-m-Faser
+
+GUI-Captures (Lina, aux-Achse, R(λ)-korrigiert), 1505–1625 nm, verlustfrei
+aus `.json` konvertiert. Gegenueber 10-01 ist der 20-dB-Koppler hinter dem
+Zirkulator (1 % -> 2-m-Referenz) ausgebaut. Auswertung: `logs/2026-10-02.md`,
+`results/2026-10-02/ofdr_report_no_offset/`.
+
+| Datei (`2026-10-02-11-…npz`) | Detektor | Zustand | Befund (Odyssey-Report) |
+|---|---|---|---|
+| `nofiberattheendandnoextra2m` | Mk2 LOG SN0002, 240 kHz, Klemme 0 % | ohne Faser, VOA im LO-Arm | Port 557.18 mm (0 dB), kein Ende |
+| `2mfiberattheendandnoextra2m` | dito | 2m07-PM-Faser am Port, VOA im LO-Arm | Port 557.17 mm, L = 2095.95 ± 0.21 mm |
+| `nofiberattheendandnoextra2mandswapvoafor2mfiberinmeasurementmzi` | dito | ohne Faser, 2-m-Faser statt VOA | Port 585.58 mm (LO 56.8 mm kuerzer), kein Ende |
+| `1mCfiberattheendandnoextra2mandswapvoafor2mfiberinmeasurementmzi` | dito | 1mC-SM-Faser am Port, 2-m-Faser statt VOA | Port 585.58 mm, L = 1056.51 ± 0.11 mm (09-15: 1056.42) |
