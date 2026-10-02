@@ -52,35 +52,32 @@ PASS_END = 10.0       # Abstand zur Front-/Rueckwand
 PASS_SEG = 35.0       # max. Fensterlaenge zwischen zwei Stegen (Bruecke beim Druck)
 PASS_POST = 3.0       # Stegbreite
 
-# FC-Kupplung: silberne Platte (Flansch) gemessen 20 x 20 x 5 mm,
-# Gewindehals M8x0.75 (Annahme)
-FC_FLANGE = 20.0
-FC_POCKET = 20.6      # 0.3 Spiel je Seite
-FLANGE_T = 5.0
-FC_BORE = 14.0        # gross genug fuer gruene Schutzkappe / Ueberwurfmutter
+# FC-Kupplung (gemessen): Flansch 12.6 x 4 mm, Haelse Ø8.1 x 5.5 mm je Seite
+FC_FLANGE = 12.6
+FC_POCKET = 13.2      # 0.3 Spiel je Seite
+FLANGE_T = 4.0
 
-# Wand-Kupplung: Block innen an der Wand mit demselben Flansch-Schlitz wie die
-# Turm-Halter; Kupplung wird von oben eingesteckt. Der aeussere Hals endet kurz
-# vor der Wand, Stecker/Kappe kommen von aussen durch die Bohrung.
-NECK_L = 6.0          # Halslaenge je Seite ab Flansch (Annahme -> test_print!)
-NECK_GAP = 0.5        # Luft Halsende <-> Wand-Innenseite
+# Wand-Kupplung: Flansch sitzt IN der Wand (Schlitz, von oben eingesteckt), aussen nur
+# eine duenne Lippe -> der aeussere Hals schaut ganz heraus. Lippe und Innenwand haben
+# eine Oeffnung NECK_W, damit Mutter/Kappe bis an den Flansch kommen.
+NECK_L = 5.5          # Halslaenge je Seite ab Flansch (gemessen)
+MOUNT_LIP = 1.2       # aeussere Lippe vor dem Flansch
 MOUNT_LEDGE = 2.0     # Material unter dem Flansch
-MOUNT_HALF = 12.3     # Block halbe Breite (Schlitz 20.6 + 2 Wand je Seite)
+MOUNT_HALF = FC_POCKET / 2 + 2.0   # Verdickung halbe Breite
 
 # Connector-Halter (Modul, stapelbar auf 2 Stiften), 1 Turm, 3 Kupplungen pro Ebene
 N_HOLDERS = 3         # Ebenen pro Turm
 N_HOLDER_STACKS = 1
-HOLDER_PITCH = 23.0
+HOLDER_PITCH = 17.0
 HOLDER_PLATE_T = 2.0
 SLOT_T = FLANGE_T + 0.4
-MOUNT_W_F = NECK_L + NECK_GAP                  # Flansch-Aussenseite ab Wand
-MOUNT_DEPTH = MOUNT_W_F + SLOT_T + 2.0         # Block-Tiefe ab Wand
-SLOT_WALL = 2.0       # Wand je Seite neben dem Flansch-Schlitz
-NECK_W = 8.6          # U-Kerbe fuer den M8-Hals der Kupplung
-HOLDER_W = 44.0       # X
+SLOT_WALL = 1.2       # duenn: Ueberwurfmutter muss weit genug auf den 5.5-mm-Hals
+MOUNT_T = MOUNT_LIP + SLOT_T + SLOT_WALL       # Wanddicke an der Kupplung (ab Aussenseite)
+NECK_W = 10.5         # U-Kerbe: Platz fuer gruene Schutzkappe / Mutter (Hals Ø8.1)
+HOLDER_W = 24.0       # X
 HOLDER_D = 72.0       # Y
-HOLDER_SLEEVE_YS = (-23.0, 0.0, 23.0)
-HOLDER_PINS = ((-16.0, -11.5), (16.0, 11.5))   # diagonal, zwischen den Kupplungen
+HOLDER_SLEEVE_YS = (-20.0, 0.0, 20.0)
+HOLDER_PINS = ((0.0, -31.0), (0.0, 31.0))      # an den Enden, nicht im Weg der Stecker
 HOLDER_PIN_D = 5.0
 HOLDER_PIN_CLR = 0.6
 HOLDER_BOSS_D = 9.0
@@ -96,14 +93,13 @@ BAND_H = 8.0          # verdickter Rand oben an den Seitenwaenden
 BAND_IN = 2.6         # so weit ragt der Rand nach innen (= Nuttiefe)
 
 # Beschriftung / Logo als Inlay (eigener Koerper -> eigenes Filament im AMS)
-LABEL_BAND = 9.0      # Platz ueber den Panel-Connectoren fuer die Schrift
 INLAY_DEPTH = 0.8     # vertiefte Schrift, einfarbig gedruckt, zum Ausmalen
 FONT = "Arial"
 PORT_TEXT_H = 5.0
 TITLE = "LINA OBR"
 TITLE_H = 20.0
 LOGO_SVG = HERE / "logo_akhetonics.svg"
-LOGO_D = 44.0
+LOGO_D = 30.0
 FRONT_LABELS = ["LASER", "DUT"]
 REAR_LABELS = ["CH1", "CH2", "CH3", "CH4"]
 COLOR_BOX = cq.Color(0.80, 0.80, 0.82, 1)      # hellgrau
@@ -124,9 +120,13 @@ HOLDER_CYS = [_zone_y0 + HOLDER_ZONE_D * (2 * k + 1) / (2 * N_HOLDER_STACKS)
               for k in range(N_HOLDER_STACKS)]
 
 # Wand-Kupplungen oberhalb der Stapel; Hoehe mindestens fuer die stehenden Rollen
-panel_cz = FLOOR + N_HOLDERS * HOLDER_PITCH + 1.0 + MOUNT_LEDGE + FC_POCKET / 2
-slot_z0 = max(panel_cz + FC_POCKET / 2 + LABEL_BAND,   # Nutunterkante
+# Wand-Kupplungen so hoch wie moeglich (kurzer Einsteck-Schlitz von oben), aber
+# hinten ueber dem Halter-Turm, vorne mit der 45-Grad-Verdickung ueber den Rollen-Stegen
+_cz_min = max(FLOOR + N_HOLDERS * HOLDER_PITCH + 1.0 + MOUNT_LEDGE + FC_POCKET / 2,
+              FLOOR + COIL_DIV_H + 1.0 + (MOUNT_T - WALL) + MOUNT_LEDGE + FC_POCKET / 2)
+slot_z0 = max(_cz_min + FC_POCKET / 2 + 1.0,           # Nutunterkante
               FLOOR + COIL_D + 3.0)
+panel_cz = slot_z0 - 1.0 - FC_POCKET / 2
 OUT_H = slot_z0 + LID_SLOT_H + TOP_LIP
 
 # vorne vor dem Rollenfach: ueber den Trays ist kein Platz fuer die 45-Grad-Schraege
@@ -156,49 +156,41 @@ def _wall_slab(face_y, d, u0, u1, w0, w1, z0, z1, x):
     return box(x + u0, ya, z0, u1 - u0, yb - ya, z1 - z0)
 
 
-def mount_geom(x, face, d, cz):
-    """Steck-Halter fuer eine Wand-Kupplung an der Wand-Innenseite face (Richtung d).
-    Unterseite 45 Grad schraeg zur Wand -> stuetzfrei druckbar. Gibt (add, cut) zurueck."""
-    zf0 = cz - FC_POCKET / 2                     # Flansch-Unterkante
-    zf1 = cz + FC_POCKET / 2
-    wd = MOUNT_DEPTH
+def mount_geom(x, face_out, d, cz, z_top):
+    """Wand-Kupplung: Verdickung + Flansch-Schlitz in der Wand. face_out = Aussenflaeche,
+    d = Richtung nach innen (+1 Front, -1 Rueckwand). Schlitz und Hals-Oeffnung sind
+    nach oben offen bis z_top. Gibt (add, cut) zurueck."""
+    zf0 = cz - FC_POCKET / 2
     zb = zf0 - MOUNT_LEDGE
-    prof = [(face + d * 0, zb - wd), (face + d * wd, zb), (face + d * wd, zf1), (face + d * 0, zf1)]
+    extra = MOUNT_T - WALL                       # so weit ragt die Verdickung nach innen
+    prof = [(face_out + d * 0, zb - extra), (face_out + d * MOUNT_T, zb),
+            (face_out + d * MOUNT_T, z_top), (face_out + d * 0, z_top)]
     if d < 0:
         prof = prof[::-1]
     add = (cq.Workplane("YZ").polyline(prof).close().extrude(2 * MOUNT_HALF)
            .translate((x - MOUNT_HALF, 0, 0)))
     big = 50
-    wf = MOUNT_W_F
-    # Flansch-Schlitz, oben offen
-    cut = _wall_slab(face, d, -FC_POCKET / 2, FC_POCKET / 2, wf, wf + SLOT_T, zf0, zf1 + big, x)
-    # aussen: Platz fuer den Hals + Stecker von aussen (Ø FC_BORE), oben offen
-    cut = cut.union(_wall_slab(face, d, -FC_BORE / 2, FC_BORE / 2, -0.01, wf + 0.01, cz, zf1 + big, x))
-    # innen: U-Kerbe fuer den inneren Hals
-    cut = cut.union(_wall_slab(face, d, -NECK_W / 2, NECK_W / 2, wf + SLOT_T - 0.01, wd + 0.01,
-                               cz, zf1 + big, x))
-    y_in, y_end = sorted((face, face + d * wf))
-    cut = cut.union(cyl_y(x, y_in - 0.01, cz, FC_BORE, y_end - y_in + 0.02))
-    y_a, y_b = sorted((face + d * (wf + SLOT_T), face + d * wd))
-    cut = cut.union(cyl_y(x, y_a - 0.01, cz, NECK_W, y_b - y_a + 0.02))
-    # Bohrung durch die Wand
-    y0 = face - d * WALL
-    cut = cut.union(cyl_y(x, min(y0, face) - 1, cz, FC_BORE, WALL + 2))
+    cut = _wall_slab(face_out, d, -FC_POCKET / 2, FC_POCKET / 2, MOUNT_LIP, MOUNT_LIP + SLOT_T,
+                     zf0, z_top + big, x)
+    cut = cut.union(_wall_slab(face_out, d, -NECK_W / 2, NECK_W / 2, -1, MOUNT_T + 1,
+                               cz, z_top + big, x))
+    y0 = min(face_out - d * 1, face_out + d * (MOUNT_T + 1))
+    cut = cut.union(cyl_y(x, y0, cz, NECK_W, MOUNT_T + 2))
     return add, cut
 
 
 def wall_mount(x, front):
-    face, d = (WALL, +1) if front else (OUT_D - WALL, -1)
-    return mount_geom(x, face, d, panel_cz)
+    face, d = (0.0, +1) if front else (OUT_D, -1)
+    return mount_geom(x, face, d, panel_cz, slot_z0)
 
 
 def make_test_print():
     """Probedruck: Stueck Wand mit einer Wand-Kupplung + kurzer Rollenschlitz."""
     t = WALL
-    cz = FLOOR + MOUNT_LEDGE + MOUNT_DEPTH + 1.0 + FC_POCKET / 2
-    h = cz + FC_POCKET / 2 + 3.0
+    cz = FLOOR + MOUNT_LEDGE + (MOUNT_T - WALL) + 1.0 + FC_POCKET / 2
+    h = cz + FC_POCKET / 2 + 1.0
     wall = box(0, 0, 0, 40, 30, FLOOR).union(box(0, 0, 0, 40, t, h))
-    add, cut = mount_geom(20, t, +1, cz)
+    add, cut = mount_geom(20, 0.0, +1, cz, h)
     wall = wall.union(add).cut(cut)
     gx = 50
     gauge = box(gx, 0, 0, COIL_SLOT + 2 * COIL_DIV_T + 6, 40, FLOOR)
@@ -331,14 +323,14 @@ def _logo(cx, cz, d):
 
 def make_inlays():
     """Liste (name, Workplane). Die Box bekommt dieselben Koerper als Vertiefung."""
-    z_lab = panel_cz + FC_POCKET / 2 + LABEL_BAND / 2
+    z_lab = panel_cz - FC_POCKET / 2 - 2.0 - PORT_TEXT_H / 2   # unter den Kupplungen
     out = [(f"label_front_{t}", _text_front(t, x, z_lab, PORT_TEXT_H))
            for t, x in zip(FRONT_LABELS, FRONT_X)]
     out += [(f"label_rear_{t}", _text_front(t, x, z_lab, PORT_TEXT_H, OUT_D, +1))
             for t, x in zip(REAR_LABELS, reversed(REAR_X))]   # von hinten gelesen: CH1 links
-    out.append(("label_title", _text_front(TITLE, tray_cx, 48.0, TITLE_H)))
-    out.append(("logo", _logo(WALL + coil_w / 2, 48.0, LOGO_D)))
-    out.append(("label_akhetonics", _text_front("AKHETONICS", OUT_W / 2, 50.0, 18.0, OUT_D, +1)))
+    out.append(("label_title", _text_front(TITLE, tray_cx, 38.0, TITLE_H)))
+    out.append(("logo", _logo(WALL + coil_w / 2, 28.0, LOGO_D)))
+    out.append(("label_akhetonics", _text_front("AKHETONICS", OUT_W / 2, 30.0, 16.0, OUT_D, +1)))
     return out
 
 
