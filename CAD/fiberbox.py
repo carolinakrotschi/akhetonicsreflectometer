@@ -1,4 +1,4 @@
-"""Fiber-Box: 6 gestapelte Thorlabs-BFCT-Trays, dahinter 2 Tuerme a 3 Connector-Halter,
+"""Fiber-Box: 6 gestapelte Thorlabs-BFCT-Trays, dahinter 1 Turm a 3 Connector-Halter (je 3 Plaetze),
 Seitenfach links fuer 4 Fiber-Rollen, Schiebedeckel, 6 Wand-Kupplungen mit Riegel.
 
 Koordinaten der Box: X = Breite (links->rechts), Y = Tiefe (vorne->hinten),
@@ -22,8 +22,8 @@ OUT = HERE / "step"
 TRAY_STEP = HERE.parent / "general documents" / "fiberholder.step"
 
 # ---------------------------------------------------------------- Parameter
-WALL = 2.4            # Wand (6 Perimeter bei 0.4er Duese)
-FLOOR = 2.4
+WALL = 2.0            # Wand (5 Perimeter bei 0.4er Duese)
+FLOOR = 2.0
 CLR = 1.0             # Spiel Tray <-> Wand je Seite
 
 # Thorlabs BFCT (aus fiberholder.step gemessen; dort Y = hoch, Z = Tiefe)
@@ -37,16 +37,16 @@ TRAY_HOLES = [(-38.1, -18.29), (38.1, 18.29)]   # Bohrung Ø7.74, diagonal genut
 PIN_D = 7.2
 PIN_H = (N_TRAYS - 1) * TRAY_PITCH + TRAY_H + 3.0
 
-# Fiber-Rollen (Annahme Ø100 x 15, hochkant)
-COIL_SLOT = 18.0
+# Fiber-Rollen (Annahme Ø70 x 10, hochkant -- NACHMESSEN)
+COIL_SLOT = 13.0
 N_COILS = 4
 COIL_DIV_T = 1.6
-COIL_DIV_H = 60.0
-COIL_D = 100.0
+COIL_DIV_H = 45.0
+COIL_D = 70.0
 DIVIDER_T = 2.0       # Trennwand Seitenfach <-> Hauptraum
-DIVIDER_H = 70.0      # darueber Durchgang fuer die Fibers
-PASS_Z0 = 20.0        # waagrechtes Kabel-Fenster in allen Waenden des Rollenfachs,
-PASS_Z1 = 40.0        # Unter-/Oberkante ueber dem Boden
+DIVIDER_H = 55.0      # darueber Durchgang fuer die Fibers
+PASS_Z0 = 15.0        # waagrechtes Kabel-Fenster in allen Waenden des Rollenfachs,
+PASS_Z1 = 30.0        # Unter-/Oberkante ueber dem Boden
 PASS_END = 10.0       # Abstand zur Front-/Rueckwand
 PASS_SEG = 35.0       # max. Fensterlaenge zwischen zwei Stegen (Bruecke beim Druck)
 PASS_POST = 3.0       # Stegbreite
@@ -70,23 +70,23 @@ GROOVE_HALF = 13.4
 MOUNT_HALF = 15.0     # Schienenblock halbe Breite
 KEEPER_NOTCH = 13.0   # U-Kerbe im Riegel fuer den inneren Hals + Kappe
 
-# Connector-Halter (Modul, stapelbar auf 2 Stiften), 2 Tuerme hintereinander
+# Connector-Halter (Modul, stapelbar auf 2 Stiften), 1 Turm, 3 Kupplungen pro Ebene
 N_HOLDERS = 3         # Ebenen pro Turm
-N_HOLDER_STACKS = 2
+N_HOLDER_STACKS = 1
 HOLDER_PITCH = 23.0
 HOLDER_PLATE_T = 2.0
 SLOT_T = FLANGE_T + 0.4
 SLOT_WALL = 2.0       # Wand je Seite neben dem Flansch-Schlitz
 NECK_W = 8.6          # U-Kerbe fuer den M8-Hals der Kupplung
 HOLDER_W = 44.0       # X
-HOLDER_D = 48.0       # Y
-HOLDER_SLEEVE_Y = 11.5
-HOLDER_PIN_X = 16.0
+HOLDER_D = 72.0       # Y
+HOLDER_SLEEVE_YS = (-23.0, 0.0, 23.0)
+HOLDER_PINS = ((-16.0, -11.5), (16.0, 11.5))   # diagonal, zwischen den Kupplungen
 HOLDER_PIN_D = 5.0
 HOLDER_PIN_CLR = 0.6
 HOLDER_BOSS_D = 9.0
-HOLDER_ZONE_D = 100.0
-HOLDER_BACK_GAP = 18.0  # Luft hinter dem hinteren Turm: Wand-Kupplungen haengen nicht ueber den Halter-Steckern
+HOLDER_ZONE_D = 74.0
+HOLDER_BACK_GAP = 14.5  # Luft hinter dem hinteren Turm: Wand-Kupplungen haengen nicht ueber den Halter-Steckern
 
 # Schiebedeckel
 LID_T = 2.0
@@ -250,11 +250,11 @@ def make_box():
 
     # Halter-Stifte, 2 pro Turm
     for cy in HOLDER_CYS:
-        for sx in (-HOLDER_PIN_X, HOLDER_PIN_X):
+        for sx, sy in HOLDER_PINS:
             pin = (cq.Workplane("XY").circle(HOLDER_PIN_D / 2)
                    .extrude(N_HOLDERS * HOLDER_PITCH - 3)
                    .faces(">Z").edges().chamfer(0.8)
-                   .translate((tray_cx + sx, cy, FLOOR)))
+                   .translate((tray_cx + sx, cy + sy, FLOOR)))
             b = b.union(pin)
 
     # Wand-Kupplungen: 2 vorne, 4 hinten
@@ -352,7 +352,7 @@ def make_lid():
 
 # ---------------------------------------------------------------- Halter
 def make_holder():
-    """Steck-Halter fuer 2 FC-Kupplungen (wie der gedruckte Halter im Labor):
+    """Steck-Halter fuer 3 FC-Kupplungen (wie der gedruckte Halter im Labor):
     Flansch wird von oben in einen Schlitz gesteckt, der Hals liegt in einer U-Kerbe.
     Der naechste Halter im Stapel liegt oben auf und haelt die Flansche fest.
     Lokal: Mitte bei X=Y=0, Unterseite Z=0, Kupplungsachse = X."""
@@ -361,14 +361,14 @@ def make_holder():
     h = cq.Workplane("XY").box(HOLDER_W, HOLDER_D, HOLDER_PLATE_T, centered=(True, True, False))
     h = h.union(cq.Workplane("XY").box(block_t, HOLDER_D, block_h, centered=(True, True, False))
                 .translate((0, 0, HOLDER_PLATE_T)))
-    for sx in (-HOLDER_PIN_X, HOLDER_PIN_X):
+    for sx, sy in HOLDER_PINS:
         h = h.union(cq.Workplane("XY").circle(HOLDER_BOSS_D / 2).extrude(HOLDER_PITCH)
-                    .translate((sx, 0, 0)))
+                    .translate((sx, sy, 0)))
         h = h.cut(cq.Workplane("XY").circle((HOLDER_PIN_D + HOLDER_PIN_CLR) / 2)
-                  .extrude(HOLDER_PITCH + 2).translate((sx, 0, -1)))
+                  .extrude(HOLDER_PITCH + 2).translate((sx, sy, -1)))
     flange_z0 = HOLDER_PLATE_T + 0.5
     cz = flange_z0 + FC_FLANGE / 2
-    for sy in (-HOLDER_SLEEVE_Y, HOLDER_SLEEVE_Y):
+    for sy in HOLDER_SLEEVE_YS:
         # Flansch-Schlitz, oben offen
         h = h.cut(cq.Workplane("XY").box(SLOT_T, FC_POCKET, HOLDER_PITCH, centered=(True, True, False))
                   .translate((0, sy, flange_z0)))
