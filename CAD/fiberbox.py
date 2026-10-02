@@ -1,5 +1,5 @@
 """Fiber-Box: 6 gestapelte Thorlabs-BFCT-Trays, dahinter 1 Turm a 3 Connector-Halter (je 3 Plaetze),
-Seitenfach links fuer 4 Fiber-Rollen, Schiebedeckel, 6 Wand-Kupplungen mit Riegel.
+Seitenfach links fuer 4 Fiber-Rollen, Schiebedeckel, 6 Wand-Kupplungen zum Einstecken.
 
 Koordinaten der Box: X = Breite (links->rechts), Y = Tiefe (vorne->hinten),
 Z = Hoehe. Ursprung = aeussere Ecke vorne-links-unten. Alle Masse in mm.
@@ -9,7 +9,8 @@ Ausgabe (alles in step/):
   fiberbox_closed.step      dasselbe mit eingeschobenem Deckel
   fiberbox_with_trays.step  wie fiberbox.step plus 6 BFCT-Trays (nur Referenz, nicht drucken)
   box_print.step            Druck: Box + Schrift/Logo als eigene Koerper
-  lid_print.step, connector_holder_print.step, keeper_print.step   Druckteile einzeln, in Druckorientierung
+  lid_print.step, connector_holder_print.step   Druckteile einzeln, in Druckorientierung
+  test_print.step           Probedruck: eine Wand-Kupplung + Rollenschlitz
 
 Ausfuehren:  .venv\\Scripts\\python.exe fiberbox.py
 """
@@ -58,17 +59,13 @@ FC_POCKET = 20.6      # 0.3 Spiel je Seite
 FLANGE_T = 5.0
 FC_BORE = 14.0        # gross genug fuer gruene Schutzkappe / Ueberwurfmutter
 
-# Wand-Kupplung: silberne Kupplung innen geparkt, Flansch an der Wand,
-# Riegel von oben in Schienen haelt sie fest; aussen wird die Fiber angesteckt
-MOUNT_LEDGE = 2.0     # Auflage unter Flansch und Riegel
-FLANGE_ZONE = FLANGE_T + 0.2
-KEEPER_T = 2.2        # Riegel-Dicke
-KEEPER_GROOVE = 2.4   # Nut fuer den Riegel
-LIP_T = 1.8           # Schienen-Lippe vor dem Riegel
-KEEPER_HALF = 13.1    # Riegel halbe Breite
-GROOVE_HALF = 13.4
-MOUNT_HALF = 15.0     # Schienenblock halbe Breite
-KEEPER_NOTCH = 13.0   # U-Kerbe im Riegel fuer den inneren Hals + Kappe
+# Wand-Kupplung: Block innen an der Wand mit demselben Flansch-Schlitz wie die
+# Turm-Halter; Kupplung wird von oben eingesteckt. Der aeussere Hals endet kurz
+# vor der Wand, Stecker/Kappe kommen von aussen durch die Bohrung.
+NECK_L = 6.0          # Halslaenge je Seite ab Flansch (Annahme -> test_print!)
+NECK_GAP = 0.5        # Luft Halsende <-> Wand-Innenseite
+MOUNT_LEDGE = 2.0     # Material unter dem Flansch
+MOUNT_HALF = 12.3     # Block halbe Breite (Schlitz 20.6 + 2 Wand je Seite)
 
 # Connector-Halter (Modul, stapelbar auf 2 Stiften), 1 Turm, 3 Kupplungen pro Ebene
 N_HOLDERS = 3         # Ebenen pro Turm
@@ -76,6 +73,8 @@ N_HOLDER_STACKS = 1
 HOLDER_PITCH = 23.0
 HOLDER_PLATE_T = 2.0
 SLOT_T = FLANGE_T + 0.4
+MOUNT_W_F = NECK_L + NECK_GAP                  # Flansch-Aussenseite ab Wand
+MOUNT_DEPTH = MOUNT_W_F + SLOT_T + 2.0         # Block-Tiefe ab Wand
 SLOT_WALL = 2.0       # Wand je Seite neben dem Flansch-Schlitz
 NECK_W = 8.6          # U-Kerbe fuer den M8-Hals der Kupplung
 HOLDER_W = 44.0       # X
@@ -131,7 +130,8 @@ slot_z0 = max(panel_cz + FC_POCKET / 2 + LABEL_BAND,   # Nutunterkante
               FLOOR + COIL_D + 3.0)
 OUT_H = slot_z0 + LID_SLOT_H + TOP_LIP
 
-FRONT_X = [tray_cx - 20, tray_cx + 20]                 # Laser, DUT
+# vorne vor dem Rollenfach: ueber den Trays ist kein Platz fuer die 45-Grad-Schraege
+FRONT_X = [WALL + MOUNT_HALF + 0.5, WALL + 3 * MOUNT_HALF + 2.5]   # Laser, DUT
 REAR_X = [tray_cx - 51, tray_cx - 17, tray_cx + 17, tray_cx + 51]
 
 
@@ -157,46 +157,55 @@ def _wall_slab(face_y, d, u0, u1, w0, w1, z0, z1, x):
     return box(x + u0, ya, z0, u1 - u0, yb - ya, z1 - z0)
 
 
-def wall_mount(x, front):
-    """Schienenblock + Bohrung fuer eine Wand-Kupplung. Gibt (add, cut) zurueck."""
-    face, d = (WALL, +1) if front else (OUT_D - WALL, -1)
-    zf0 = panel_cz - FC_POCKET / 2              # Flansch-Unterkante
-    zf1 = panel_cz + FC_POCKET / 2
-    depth = FLANGE_ZONE + KEEPER_GROOVE + LIP_T
-    add = _wall_slab(face, d, -MOUNT_HALF, MOUNT_HALF, 0, depth, zf0 - MOUNT_LEDGE, zf1, x)
+def mount_geom(x, face, d, cz):
+    """Steck-Halter fuer eine Wand-Kupplung an der Wand-Innenseite face (Richtung d).
+    Unterseite 45 Grad schraeg zur Wand -> stuetzfrei druckbar. Gibt (add, cut) zurueck."""
+    zf0 = cz - FC_POCKET / 2                     # Flansch-Unterkante
+    zf1 = cz + FC_POCKET / 2
+    wd = MOUNT_DEPTH
+    zb = zf0 - MOUNT_LEDGE
+    prof = [(face + d * 0, zb - wd), (face + d * wd, zb), (face + d * wd, zf1), (face + d * 0, zf1)]
+    if d < 0:
+        prof = prof[::-1]
+    add = (cq.Workplane("YZ").polyline(prof).close().extrude(2 * MOUNT_HALF)
+           .translate((x - MOUNT_HALF, 0, 0)))
     big = 50
-    cut = _wall_slab(face, d, -FC_POCKET / 2, FC_POCKET / 2, -0.01, FLANGE_ZONE, zf0, zf1 + big, x)
-    cut = cut.union(_wall_slab(face, d, -GROOVE_HALF, GROOVE_HALF, FLANGE_ZONE,
-                               FLANGE_ZONE + KEEPER_GROOVE, zf0, zf1 + big, x))
-    cut = cut.union(_wall_slab(face, d, -FC_POCKET / 2, FC_POCKET / 2, FLANGE_ZONE,
-                               depth + 1, zf0, zf1 + big, x))
+    wf = MOUNT_W_F
+    # Flansch-Schlitz, oben offen
+    cut = _wall_slab(face, d, -FC_POCKET / 2, FC_POCKET / 2, wf, wf + SLOT_T, zf0, zf1 + big, x)
+    # aussen: Platz fuer den Hals + Stecker von aussen (Ø FC_BORE), oben offen
+    cut = cut.union(_wall_slab(face, d, -FC_BORE / 2, FC_BORE / 2, -0.01, wf + 0.01, cz, zf1 + big, x))
+    # innen: U-Kerbe fuer den inneren Hals
+    cut = cut.union(_wall_slab(face, d, -NECK_W / 2, NECK_W / 2, wf + SLOT_T - 0.01, wd + 0.01,
+                               cz, zf1 + big, x))
+    y_in, y_end = sorted((face, face + d * wf))
+    cut = cut.union(cyl_y(x, y_in - 0.01, cz, FC_BORE, y_end - y_in + 0.02))
+    y_a, y_b = sorted((face + d * (wf + SLOT_T), face + d * wd))
+    cut = cut.union(cyl_y(x, y_a - 0.01, cz, NECK_W, y_b - y_a + 0.02))
+    # Bohrung durch die Wand
     y0 = face - d * WALL
-    cut = cut.union(cyl_y(x, min(y0, face) - 1, panel_cz, FC_BORE, WALL + 2))
+    cut = cut.union(cyl_y(x, min(y0, face) - 1, cz, FC_BORE, WALL + 2))
     return add, cut
 
 
-def make_keeper():
-    """Riegel: schiebt von oben in die Schienen und drueckt den Flansch an die Wand.
-    Lokal: Platte in XZ, Mitte X=0, Unterseite Z=0, Dicke in +Y. Kerbe unten fuer den Hals."""
-    h = FC_POCKET + 3.0                          # oben 3 mm Griff ueber der Schiene
-    k = box(-KEEPER_HALF, 0, 0, 2 * KEEPER_HALF, KEEPER_T, h)
-    r = KEEPER_NOTCH / 2
-    k = k.cut(box(-r, -1, -1, 2 * r, KEEPER_T + 2, FC_POCKET / 2 + 1))
-    k = k.cut(cyl_y(0, -1, FC_POCKET / 2, KEEPER_NOTCH, KEEPER_T + 2))
-    return k
+def wall_mount(x, front):
+    face, d = (WALL, +1) if front else (OUT_D - WALL, -1)
+    return mount_geom(x, face, d, panel_cz)
 
 
-def keeper_locations():
-    """Einbaulage der Riegel, passend zu wall_mount."""
-    z = panel_cz - FC_POCKET / 2
-    locs = []
-    for x in FRONT_X:
-        y = WALL + FLANGE_ZONE + (KEEPER_GROOVE - KEEPER_T) / 2
-        locs.append(cq.Location(cq.Vector(x, y, z)))
-    for x in REAR_X:
-        y = OUT_D - WALL - FLANGE_ZONE - (KEEPER_GROOVE - KEEPER_T) / 2
-        locs.append(cq.Location(cq.Vector(x, y, z), cq.Vector(0, 0, 1), 180))
-    return locs
+def make_test_print():
+    """Probedruck: Stueck Wand mit einer Wand-Kupplung + kurzer Rollenschlitz."""
+    t = WALL
+    cz = FLOOR + MOUNT_LEDGE + MOUNT_DEPTH + 1.0 + FC_POCKET / 2
+    h = cz + FC_POCKET / 2 + 3.0
+    wall = box(0, 0, 0, 40, 30, FLOOR).union(box(0, 0, 0, 40, t, h))
+    add, cut = mount_geom(20, t, +1, cz)
+    wall = wall.union(add).cut(cut)
+    gx = 50
+    gauge = box(gx, 0, 0, COIL_SLOT + 2 * COIL_DIV_T + 6, 40, FLOOR)
+    for wx in (gx + 3, gx + 3 + COIL_DIV_T + COIL_SLOT):
+        gauge = gauge.union(box(wx, 0, 0, COIL_DIV_T, 40, 25))
+    return [("test_connector", wall), ("test_coil_slot", gauge)]
 
 
 # ---------------------------------------------------------------- Box
@@ -405,9 +414,6 @@ def build_assembly(lid_pos, with_trays):
             asm.add(holder, name=f"holder_{k+1}_{i+1}",
                     loc=cq.Location((tray_cx, cy, FLOOR + i * HOLDER_PITCH)),
                     color=COLOR_BOX)
-    keeper = make_keeper()
-    for i, loc in enumerate(keeper_locations()):
-        asm.add(keeper, name=f"keeper_{i+1}", loc=loc, color=COLOR_BOX)
     if with_trays:
         tray = load_tray()
         for i in range(N_TRAYS):
@@ -433,8 +439,10 @@ def main():
     inl.save(str(parts / "box_print.step"))
     cq.exporters.export(lid.translate((0, 0, -slot_z0)), str(parts / "lid_print.step"))
     cq.exporters.export(holder, str(parts / "connector_holder_print.step"))
-    # Riegel liegend drucken
-    cq.exporters.export(make_keeper().rotate((0, 0, 0), (1, 0, 0), -90), str(parts / "keeper_print.step"))
+    test = cq.Assembly(name="test_print")
+    for name, w in make_test_print():
+        test.add(w, name=name, color=COLOR_BOX)
+    test.save(str(parts / "test_print.step"))
 
     print(f"Box aussen: {OUT_W:.1f} x {OUT_D:.1f} x {OUT_H:.1f} mm")
     print(f"Seitenfach innen: {coil_w:.1f} x {in_d:.1f} mm, Trays-Raum {tray_zone_w:.1f} x {TRAY_D+2*CLR:.1f}")
