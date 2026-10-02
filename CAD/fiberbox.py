@@ -9,7 +9,7 @@ Ausgabe (alles in step/):
   fiberbox_closed.step      dasselbe mit eingeschobenem Deckel
   fiberbox_with_trays.step  wie fiberbox.step plus 6 BFCT-Trays (nur Referenz, nicht drucken)
   box_print.step            Druck: Box + Schrift/Logo als eigene Koerper
-  lid.step, connector_holder.step, keeper.step   Druckteile einzeln, in Druckorientierung
+  lid_print.step, connector_holder_print.step, keeper_print.step   Druckteile einzeln, in Druckorientierung
 
 Ausfuehren:  .venv\\Scripts\\python.exe fiberbox.py
 """
@@ -431,10 +431,10 @@ def main():
     for name, w in make_inlays():
         inl.add(w, name=name, color=COLOR_INLAY)
     inl.save(str(parts / "box_print.step"))
-    cq.exporters.export(lid.translate((0, 0, -slot_z0)), str(parts / "lid.step"))
-    cq.exporters.export(holder, str(parts / "connector_holder.step"))
+    cq.exporters.export(lid.translate((0, 0, -slot_z0)), str(parts / "lid_print.step"))
+    cq.exporters.export(holder, str(parts / "connector_holder_print.step"))
     # Riegel liegend drucken
-    cq.exporters.export(make_keeper().rotate((0, 0, 0), (1, 0, 0), -90), str(parts / "keeper.step"))
+    cq.exporters.export(make_keeper().rotate((0, 0, 0), (1, 0, 0), -90), str(parts / "keeper_print.step"))
 
     print(f"Box aussen: {OUT_W:.1f} x {OUT_D:.1f} x {OUT_H:.1f} mm")
     print(f"Seitenfach innen: {coil_w:.1f} x {in_d:.1f} mm, Trays-Raum {tray_zone_w:.1f} x {TRAY_D+2*CLR:.1f}")
