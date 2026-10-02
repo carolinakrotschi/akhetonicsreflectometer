@@ -10,7 +10,7 @@ Ausgabe (alles in step/):
   fiberbox_with_trays.step  wie fiberbox.step plus 6 BFCT-Trays (nur Referenz, nicht drucken)
   box_print.step            Druck: Box (Schrift/Logo vertieft, einfarbig; danach ausmalen)
   lid_print.step, connector_holder_print.step   Druckteile einzeln, in Druckorientierung
-  test_print.step           Probedruck: Wand-Kupplung, Turm-Halter (1 Platz), Rollenschlitz
+  test_print.step           Schnell-Probedruck: Wand-Kupplung + Turm-Halter (je 1 Platz)
 
 Ausfuehren:  .venv\\Scripts\\python.exe fiberbox.py
 """
@@ -185,19 +185,19 @@ def wall_mount(x, front):
 
 
 def make_test_print():
-    """Probedruck: Stueck Wand mit einer Wand-Kupplung + kurzer Rollenschlitz."""
+    """Schnell-Probedruck mit minimalem Material: ein Turm-Halter-Platz und ein Stueck
+    Wand mit einer Wand-Kupplung, beide in Originalgeometrie."""
     t = WALL
+    w = 2 * MOUNT_HALF + 4.0
     cz = FLOOR + MOUNT_LEDGE + (MOUNT_T - WALL) + 1.0 + FC_POCKET / 2
     h = cz + FC_POCKET / 2 + 1.0
-    wall = box(0, 0, 0, 40, 30, FLOOR).union(box(0, 0, 0, 40, t, h))
-    add, cut = mount_geom(20, 0.0, +1, cz, h)
+    wall = box(0, 0, 0, w, MOUNT_T + 4.0, FLOOR).union(box(0, 0, 0, w, t, h))
+    add, cut = mount_geom(w / 2, 0.0, +1, cz, h)
     wall = wall.union(add).cut(cut)
-    gx = 50
-    gauge = box(gx, 0, 0, COIL_SLOT + 2 * COIL_DIV_T + 6, 40, FLOOR)
-    for wx in (gx + 3, gx + 3 + COIL_DIV_T + COIL_SLOT):
-        gauge = gauge.union(box(wx, 0, 0, COIL_DIV_T, 40, 25))
-    tower = make_holder(sleeve_ys=(0.0,), pins=(), w=30.0, d=FC_POCKET + 6.0).translate((20, 55, 0))
-    return [("test_wall_connector", wall), ("test_tower_holder", tower), ("test_coil_slot", gauge)]
+    block_t = SLOT_T + 2 * SLOT_WALL
+    tower = make_holder(sleeve_ys=(0.0,), pins=(), w=block_t + 4.0, d=FC_POCKET + 4.0)
+    tower = tower.translate((w + 10 + (block_t + 4.0) / 2, (FC_POCKET + 4.0) / 2, 0))
+    return [("test_wall_connector", wall), ("test_tower_holder", tower)]
 
 
 # ---------------------------------------------------------------- Box
