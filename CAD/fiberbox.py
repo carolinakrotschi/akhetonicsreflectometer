@@ -8,9 +8,9 @@ Ausgabe (alles in step/):
   fiberbox.step             Box offen, Deckel daneben, Halter + Riegel montiert
   fiberbox_closed.step      dasselbe mit eingeschobenem Deckel
   fiberbox_with_trays.step  wie fiberbox.step plus 6 BFCT-Trays (nur Referenz, nicht drucken)
-  box_print.step            Druck: Box + Schrift/Logo als eigene Koerper
+  box_print.step            Druck: Box (Schrift/Logo vertieft, einfarbig; danach ausmalen)
   lid_print.step, connector_holder_print.step   Druckteile einzeln, in Druckorientierung
-  test_print.step           Probedruck: eine Wand-Kupplung + Rollenschlitz
+  test_print.step           Probedruck: Wand-Kupplung, Turm-Halter (1 Platz), Rollenschlitz
 
 Ausfuehren:  .venv\\Scripts\\python.exe fiberbox.py
 """
@@ -97,7 +97,7 @@ BAND_IN = 2.6         # so weit ragt der Rand nach innen (= Nuttiefe)
 
 # Beschriftung / Logo als Inlay (eigener Koerper -> eigenes Filament im AMS)
 LABEL_BAND = 9.0      # Platz ueber den Panel-Connectoren fuer die Schrift
-INLAY_DEPTH = 0.6
+INLAY_DEPTH = 0.8     # vertiefte Schrift, einfarbig gedruckt, zum Ausmalen
 FONT = "Arial"
 PORT_TEXT_H = 5.0
 TITLE = "LINA OBR"
@@ -107,7 +107,6 @@ LOGO_D = 44.0
 FRONT_LABELS = ["LASER", "DUT"]
 REAR_LABELS = ["CH1", "CH2", "CH3", "CH4"]
 COLOR_BOX = cq.Color(0.80, 0.80, 0.82, 1)      # hellgrau
-COLOR_INLAY = cq.Color(0.78, 0.13, 0.42, 1)    # dunkelrosa, nur Schrift/Logo aussen
 
 # ---------------------------------------------------------------- Ableitungen
 coil_w = N_COILS * COIL_SLOT + (N_COILS - 1) * COIL_DIV_T
@@ -205,7 +204,8 @@ def make_test_print():
     gauge = box(gx, 0, 0, COIL_SLOT + 2 * COIL_DIV_T + 6, 40, FLOOR)
     for wx in (gx + 3, gx + 3 + COIL_DIV_T + COIL_SLOT):
         gauge = gauge.union(box(wx, 0, 0, COIL_DIV_T, 40, 25))
-    return [("test_connector", wall), ("test_coil_slot", gauge)]
+    tower = make_holder(sleeve_ys=(0.0,), pins=(), w=30.0, d=FC_POCKET + 6.0).translate((20, 55, 0))
+    return [("test_wall_connector", wall), ("test_tower_holder", tower), ("test_coil_slot", gauge)]
 
 
 # ---------------------------------------------------------------- Box
@@ -360,24 +360,24 @@ def make_lid():
 
 
 # ---------------------------------------------------------------- Halter
-def make_holder():
+def make_holder(sleeve_ys=HOLDER_SLEEVE_YS, pins=HOLDER_PINS, w=HOLDER_W, d=HOLDER_D):
     """Steck-Halter fuer 3 FC-Kupplungen (wie der gedruckte Halter im Labor):
     Flansch wird von oben in einen Schlitz gesteckt, der Hals liegt in einer U-Kerbe.
     Der naechste Halter im Stapel liegt oben auf und haelt die Flansche fest.
     Lokal: Mitte bei X=Y=0, Unterseite Z=0, Kupplungsachse = X."""
     block_t = SLOT_T + 2 * SLOT_WALL
     block_h = HOLDER_PITCH - HOLDER_PLATE_T
-    h = cq.Workplane("XY").box(HOLDER_W, HOLDER_D, HOLDER_PLATE_T, centered=(True, True, False))
-    h = h.union(cq.Workplane("XY").box(block_t, HOLDER_D, block_h, centered=(True, True, False))
+    h = cq.Workplane("XY").box(w, d, HOLDER_PLATE_T, centered=(True, True, False))
+    h = h.union(cq.Workplane("XY").box(block_t, d, block_h, centered=(True, True, False))
                 .translate((0, 0, HOLDER_PLATE_T)))
-    for sx, sy in HOLDER_PINS:
+    for sx, sy in pins:
         h = h.union(cq.Workplane("XY").circle(HOLDER_BOSS_D / 2).extrude(HOLDER_PITCH)
                     .translate((sx, sy, 0)))
         h = h.cut(cq.Workplane("XY").circle((HOLDER_PIN_D + HOLDER_PIN_CLR) / 2)
                   .extrude(HOLDER_PITCH + 2).translate((sx, sy, -1)))
     flange_z0 = HOLDER_PLATE_T + 0.5
     cz = flange_z0 + FC_FLANGE / 2
-    for sy in HOLDER_SLEEVE_YS:
+    for sy in sleeve_ys:
         # Flansch-Schlitz, oben offen
         h = h.cut(cq.Workplane("XY").box(SLOT_T, FC_POCKET, HOLDER_PITCH, centered=(True, True, False))
                   .translate((0, sy, flange_z0)))
@@ -402,8 +402,6 @@ def build_assembly(lid_pos, with_trays):
     bx, lid, holder = make_box(), make_lid(), make_holder()
     asm = cq.Assembly(name="fiberbox")
     asm.add(bx, name="box", color=COLOR_BOX)
-    for name, inl in make_inlays():
-        asm.add(inl, name=name, color=COLOR_INLAY)
     if lid_pos == "closed":
         asm.add(lid, name="lid", color=COLOR_BOX)
     elif lid_pos == "beside":
@@ -432,11 +430,7 @@ def main():
     build_assembly("closed", False).save(str(OUT / "fiberbox_closed.step"))
 
     bx, lid, holder = make_box(), make_lid(), make_holder()
-    inl = cq.Assembly(name="box_print")
-    inl.add(bx, name="box", color=COLOR_BOX)
-    for name, w in make_inlays():
-        inl.add(w, name=name, color=COLOR_INLAY)
-    inl.save(str(parts / "box_print.step"))
+    cq.exporters.export(bx, str(parts / "box_print.step"))
     cq.exporters.export(lid.translate((0, 0, -slot_z0)), str(parts / "lid_print.step"))
     cq.exporters.export(holder, str(parts / "connector_holder_print.step"))
     test = cq.Assembly(name="test_print")
